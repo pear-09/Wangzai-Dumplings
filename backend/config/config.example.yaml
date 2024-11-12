@@ -1,0 +1,29 @@
+server:
+  jwt-secret:
+  version: "1.0"
+  name: ez-note
+
+mongodb:
+  addr:
+
+mysql:
+  url:
+
+services:
+  template:
+    name: template
+    load-balance: false
+    addr:
+      - 127.0.0.1:10001
+
+  api:
+    name: api
+    load-balance: false
+    addr:
+      - 0.0.0.0:20001
+
+  user:
+    name: user
+    load-balance: false
+    addr:
+      - 127.0.0.1:30001
