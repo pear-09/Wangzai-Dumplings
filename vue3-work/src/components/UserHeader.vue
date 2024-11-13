@@ -9,7 +9,7 @@
             <div class="navy">
                 <ul>
                     <li><RouterLink to="/home" active-class="active">首页</RouterLink></li>
-                    <li><RouterLink to="/note" active-class="active">笔记</RouterLink></li>
+                    <li><RouterLink to="/notefile" active-class="active">笔记</RouterLink></li>
                     <li><RouterLink to="/schedule" active-class="active">日程</RouterLink></li>
                     <li><RouterLink to="/write" active-class="active">写作</RouterLink></li>
                     <li><RouterLink to="/land" active-class="active">登录</RouterLink></li>

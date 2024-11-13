@@ -24,7 +24,7 @@
   <script lang="ts">
   import { defineComponent, ref, onMounted } from 'vue';
   import axios from 'axios';
-  import { GetTasksResponse, Task } from '@/types/api/getTasks'; // 导入接口类型
+  import type { GetTasksResponse, Task } from '@/types/api/getTasks'; // 导入接口类型
   
   export default defineComponent({
     name: 'Schedule',
