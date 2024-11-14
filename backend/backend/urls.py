@@ -16,8 +16,9 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('ez-note/user/', include('user.urls')),  # 这里将 user 应用的路由放在 /backend/user/ 下面
 ]
