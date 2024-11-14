@@ -5,9 +5,10 @@ from .forms import RegisterForm
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render, redirect
 from .models import User
+from .utils import generate_jwt_token
 
 @csrf_exempt
-def register(request):
+def register_view(request):
     if request.method == 'POST':
         # 检查是否提供了 username 和 password
         username = request.POST.get('username')
@@ -42,7 +43,12 @@ def login_view(request):
 
         if user is not None:
             login(request, user)  # 登录用户
-            return JsonResponse({"code": 0, "msg": "登录成功"})
+            token = generate_jwt_token(user)
+            return JsonResponse({
+                "code": 0,
+                "msg": "登录成功",
+                "token": token
+            })
         else:
             return JsonResponse({"code": 1, "msg": "用户名或密码错误"})
 
