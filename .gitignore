@@ -1,1 +1,7 @@
 /.idea
+backend/user/__pycache__/
+backend/db.sqlite3
+backend/backend/__pycache__/
+backend/note/__pycache__/
+backend/user/migrations/__pycache__/
+backend/note/migrations/__pycache__/
