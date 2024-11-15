@@ -227,3 +227,33 @@ def get_notes_in_folder_view(request):
         })
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+@csrf_exempt
+def delete_note_view(request):
+    if request.method == 'POST':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 获取前端提交的 note_id
+        note_id = request.POST.get('note_id')
+        if not note_id:
+            return JsonResponse({"code": 1, "msg": "笔记 ID 为必填项"})
+
+        # 获取指定 ID 的笔记
+        try:
+            note = Note.objects.get(id=note_id, user_id=user_id)
+        except Note.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "笔记不存在或无权限删除"})
+
+        # 删除笔记
+        note.delete()
+
+        # 返回删除成功的响应
+        return JsonResponse({"code": 0, "msg": "笔记删除成功"})
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
