@@ -22,4 +22,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path('ez-note/user/', include('user.urls')),  # 这里将 user 应用的路由放在 /backend/user/ 下面
     path('ez-note/note/',include('note.urls')),
+    path("ez-note/folder/", include("folder.urls")),  # 添加 folder 应用的路由
 ]
