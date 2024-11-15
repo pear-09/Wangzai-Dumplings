@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .forms import CreateNoteForm
 from .forms import UpdateNoteForm
+from .forms import NoteQueryForm
 from .models import Note, Tag
 from user.utils import verify_and_refresh_token  # 自定义的 token 验证函数
 from rest_framework_simplejwt.tokens import AccessToken
@@ -116,6 +117,53 @@ def update_note_view(request):
         return JsonResponse({
             "code": 0,
             "msg": "笔记更新成功",
+            "data": {
+                "id": note.id,
+                "user_id": note.user_id,
+                "title": note.title,
+                "content": note.content,
+                "folder_id": note.folder_id,
+                "tags": [tag.name for tag in note.tags.all()],
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "deleted_at": note.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if note.deleted_at else None
+            }
+        })
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+def get_note_view(request):
+    if request.method == 'GET':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 获取 query 参数，并进行表单验证
+        form = NoteQueryForm(request.GET)
+        if not form.is_valid():
+            return JsonResponse({"code": 1, "msg": f"参数验证失败: {form.errors}"})
+
+        # 获取验证后的数据
+        note_id = form.cleaned_data['note_id']
+
+        # 获取指定 ID 的笔记
+        try:
+            note = Note.objects.get(id=note_id)
+        except Note.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "笔记不存在"})
+
+        # 检查是否为当前用户的笔记
+        if note.user_id != user_id:
+            return JsonResponse({"code": 1, "msg": "您没有权限查看此笔记"})
+
+        # 返回笔记内容
+        return JsonResponse({
+            "code": 0,
+            "msg": "笔记获取成功",
             "data": {
                 "id": note.id,
                 "user_id": note.user_id,

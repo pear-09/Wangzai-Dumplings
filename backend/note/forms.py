@@ -13,3 +13,10 @@ class UpdateNoteForm(forms.ModelForm):
     class Meta:
         model = Note
         fields = ['note_id', 'content']
+
+class NoteQueryForm(forms.Form):
+    note_id = forms.IntegerField()  # 笔记 ID
+
+    class Meta:
+        model = Note
+        fields = ['note_id']
