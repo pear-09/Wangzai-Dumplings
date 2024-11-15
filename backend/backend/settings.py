@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "user",
     "note",
+    'folder',  # 添加 folder 应用
 ]
 
 MIDDLEWARE = [
