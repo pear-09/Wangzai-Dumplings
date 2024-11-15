@@ -1,4 +1,4 @@
-### 项目环境
+### 项目依赖
 见目录下requirements.txt文件
 
 ### 后端服务启动
@@ -9,7 +9,7 @@ cd backend
 pwd # /Wangzai-Dumplings/backend
 ```
 
-使用pip包管理器安装django http框架
+使用pip包管理器安装项目依赖
 ```bash
 pip intsall -r requirement.txt
 ```
