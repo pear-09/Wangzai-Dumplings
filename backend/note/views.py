@@ -24,8 +24,11 @@ def create_note_view(request):
         folder_id = request.POST.get('folder_id')
         tag_names = request.POST.getlist('tags')  # 获取标签名称列表
 
-        if not title or not content or not folder_id:
-            return JsonResponse({"code": 1, "msg": "标题、内容和文件夹 ID 不能为空"})
+        if not title:
+            title = '新建笔记'
+
+        if not folder_id:
+            return JsonResponse({"code": 1, "msg": "所属文件夹不能为空"})
 
         # 将标签名称转换为标签 ID 列表
         tag_ids = []
@@ -52,6 +55,7 @@ def create_note_view(request):
             # 保存笔记时，先不要提交到数据库
             note = form.save(commit=False)
             note.user_id = user_id  # 将当前用户关联到笔记
+            note.title = title
             note.save()  # 保存笔记实例
 
             # 关联标签到笔记
