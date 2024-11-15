@@ -21,4 +21,5 @@ from django.urls import path, include
 urlpatterns = [
     path("admin/", admin.site.urls),
     path('ez-note/user/', include('user.urls')),  # 这里将 user 应用的路由放在 /backend/user/ 下面
+    path('ez-note/note/',include('note.urls')),
 ]
