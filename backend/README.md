@@ -14,6 +14,8 @@ pwd # /Wangzai-Dumplings/backend
 pip intsall -r requirement.txt
 ```
 
+启动服务
+
 ```bash
 python manage.py runserver
 ```
