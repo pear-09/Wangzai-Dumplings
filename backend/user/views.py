@@ -24,6 +24,7 @@ def register_view(request):
             return JsonResponse({"code": 0, "msg": "success"})
         else:
             return JsonResponse({"code": 1, "msg": f"注册失败: {form.errors}"})
+            return JsonResponse({"code": 1, "msg": f"注册失败: {form.errors}"})
     
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
