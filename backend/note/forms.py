@@ -24,3 +24,10 @@ class NoteQueryForm(forms.Form):
     class Meta:
         model = Note
         fields = ['note_id']
+
+class FolderQueryForm(forms.Form):
+    folder_id = forms.IntegerField()  # 笔记 ID
+
+    class Meta:
+        model = Note
+        fields = ['folder_id']
