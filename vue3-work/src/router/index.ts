@@ -49,19 +49,18 @@ const router = createRouter({
   {
     name: 'biji',
     path: '/note/:id',
-    component: Note
+    component: NoteDetail,  // 跳转到 NoteDetail 页面
+    props: true,  // 启用 props 将路由参数传递给组件
   },
   {
     name: 'noteDetail',
-    path: '/noteDetail/:id',
+    path: '/note/:folder_id/:id?',  // 路径包含 folder_id 和可选的 id
     component: NoteDetail,
-    props: true, // 启用 props 将路由参数传递给组件
+    props: (route) => ({
+      folderId: Number(route.params.folder_id), // 确保 folderId 是数字
+      id: route.params.id || 'new', // 如果 id 不存在，则默认为 'new'
+    }),
   },
-  {
-    path: '/noteDetail/new',  // 新建笔记的路径
-    name: 'newNote',
-    component: NoteDetail,  // 使用同样的 NoteDetail 组件来处理新建和编辑
-  }
 
   ],
 })

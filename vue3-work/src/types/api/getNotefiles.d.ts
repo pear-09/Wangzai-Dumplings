@@ -1,6 +1,6 @@
-//该接口用于获取笔记文件夹列表
+//该接口用于笔记文件夹列表
 
-// 定义数据部分的结构
+// 定义笔记文件夹数据结构
 export interface Notefiles {
     id: number;          //文件夹 ID
     user_id: number;     // 用户 ID

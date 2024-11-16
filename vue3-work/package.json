@@ -13,11 +13,11 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@vitejs/plugin-vue": "^5.1.5",
     "ant-design-vue": "^4.2.6",
     "axios": "^1.7.7",
     "pinia": "^2.2.6",
     "quill": "^2.0.2",
-    "@vitejs/plugin-vue": "^5.1.5",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5"
   },
@@ -32,6 +32,7 @@
     "@vue/tsconfig": "^0.5.1",
     "eslint": "^9.14.0",
     "eslint-plugin-vue": "^9.30.0",
+    "gensync": "^1.0.0-beta.2",
     "npm-run-all2": "^7.0.1",
     "prettier": "^3.3.3",
     "typescript": "~5.6.3",
