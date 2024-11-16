@@ -1,118 +1,177 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router'; // 引入 useRoute 和 useRouter
+import { useRoute, useRouter } from 'vue-router';
+import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
+import Quill from 'quill'; // 引入 Quill 编辑器
+import 'quill/dist/quill.snow.css'; // 引入 Quill 样式
+import type { Note, GetNoteDetailResponse } from '@/types/api/getNotelist';
 
-// 获取路由参数（笔记的id）
 const route = useRoute();
 const router = useRouter();
-
-// 获取笔记ID，检查是否为新建笔记
-const noteId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
-const isNewNote = noteId === 'new';  // 如果 noteId 是 'new'，表示新建笔记
-
-// 模拟的笔记数据（后端实际接口会根据ID返回笔记信息）
-const notes = [
-  { id: '1', title: '学习 Vue.js', content: '今天学习了 Vue 3 的基本语法和响应式系统。', date: '2024-11-01' },
-  { id: '2', title: '工作项目计划', content: '与团队成员讨论了项目的进度和下一步计划。', date: '2024-11-02' },
-  { id: '3', title: '阅读《深入浅出React》', content: '阅读了书中的“React生命周期”章节，理解了 React 的渲染机制。', date: '2024-11-03' },
-  { id: '4', title: '锻炼计划', content: '跑步和做瑜伽，保持身体健康。', date: '2024-11-04' }
-];
-
-// 当前笔记
-const note = ref<{ id: string, title: string, content: string, date: string }>({
-  id: '',
+const noteId = route.params.id === 'new' ? 'new' : Number(route.params.id); // 确保类型正确
+// const noteId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
+const isNewNote = noteId === 'new'; 
+const folderId = Number(route.params.folder_id); // 从路由参数获取 folderId
+const note = ref<Note>({
+  id: 0,
+  user_id: 0,
   title: '',
   content: '',
-  date: ''
+  folder_id: folderId,
+  tag: '',
+  created_at: '',
+  updated_at: '',
+  deleted_at: null
 });
 
-// 编辑模式
 const isEditing = ref(false);
 
-// 拉取笔记内容（用于编辑）
+// 初始化 Quill 编辑器
+const quillEditor = ref<any>(null); 
+
+const API_URL = import.meta.env.VITE_API_URL ;
+
+// 获取笔记详情
 const fetchNote = async (id: string) => {
-  const fetchedNote = notes.find(n => n.id === id);
-  if (fetchedNote) {
-    note.value = { ...fetchedNote }; // 更新当前笔记内容
+  try {
+    const response = await request.get<GetNoteDetailResponse>(`${API_URL}/ez-note/note/query`, { params: { id } });
+    if (response.code === 0) {
+      const fetchedNote = response.data;
+      note.value = { ...fetchedNote };
+      // 初始化 Quill 编辑器的内容
+      if (quillEditor.value) {
+        quillEditor.value.root.innerHTML = fetchedNote.content; // 将获取的笔记内容插入编辑器
+      }
+    }
+  } catch (error) {
+    console.error('请求失败', error);
   }
 };
 
 // 初始化新建笔记
 const initNewNote = () => {
   note.value = {
-    id: '',
+    id: 0,
+    user_id: 0,
     title: '',
     content: '',
-    date: new Date().toISOString().slice(0, 10)  // 设置当前日期
+    folder_id: folderId,
+    tag: '默认',
+    created_at: new Date().toISOString().slice(0, 10),
+    updated_at: new Date().toISOString().slice(0, 10),
+    deleted_at: null
   };
 };
 
-// 进入编辑模式
+// 启动编辑模式
 const startEditing = () => {
   isEditing.value = true;
+  console.log(folderId)
 };
 
 // 保存笔记
-const saveNote = () => {
-  if (isNewNote) {
-    // 新建笔记，生成一个新的ID并添加到列表
-    const newId = (notes.length + 1).toString(); // 假设新ID是现有数据长度 + 1
-    notes.push({ ...note.value, id: newId });
-  } else {
-    // 编辑已存在的笔记
-    const index = notes.findIndex(n => n.id === note.value.id);
-    if (index !== -1) {
-      notes[index] = { ...note.value };
+const saveNote = async () => {
+  try {
+    // 准备数据
+    const noteData = {
+      title: note.value.title,
+      content: quillEditor.value.root.innerHTML, // 从 Quill 编辑器获取内容
+      folder_id: note.value.folder_id,
+      tag: note.value.tag
+    };
+
+    // 创建 URL 编码格式的数据
+    const urlEncodedData = new URLSearchParams();
+    for (const [key, value] of Object.entries(noteData)) {
+      urlEncodedData.append(key, value);
     }
+
+    // 如果是新建笔记
+    let response;
+    if (isNewNote) {
+      // 创建新笔记
+      response = await request.post(`${API_URL}/ez-note/note/create`, urlEncodedData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    } else {
+      // 更新现有笔记
+      response = await request.post(`${API_URL}/ez-note/note/update/content`, urlEncodedData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    }
+
+    // 处理响应
+    if (response.code === 0) {
+      // 成功后跳转到笔记列表页面
+      router.push({ name: 'bjwjj' });
+    } else {
+      console.error('保存失败', response.msg);
+    }
+  } catch (error) {
+    console.error('请求失败', error);
   }
-
-  // 保存完成后返回到笔记列表
-  router.push({ name: 'biji' });
-
-  
 };
 
-// 取消编辑，恢复原始数据
+
+
+// 取消编辑
 const cancelEdit = () => {
   if (isNewNote) {
-    // 如果是新建笔记，直接返回列表
-    router.push({ name: 'biji' });
-  } else {
-    fetchNote(noteId);  // 取消时重新拉取原始数据
-  }
-};
-
-// 页面加载时获取笔记数据或初始化新建笔记
-onMounted(() => {
-  if (isNewNote) {
-    initNewNote();
+    router.push({ name: 'bjwjj' });
   } else {
     fetchNote(noteId);
   }
+};
+
+onMounted(() => {
+  if (isNewNote) {
+    initNewNote();
+  } else if (noteId) {
+    fetchNote(String(noteId));
+  }
+
+  // 初始化 Quill 编辑器
+  quillEditor.value = new Quill('#editor-container', {
+    theme: 'snow', // 主题设置
+    placeholder: '在这里输入内容...', // 默认提示文字
+    modules: {
+      toolbar: [
+        [{ header: '1' }, { header: '2' }, { font: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['bold', 'italic', 'underline'],
+        ['link'],
+        ['blockquote', 'code-block'],
+        ['image', 'video'],
+      ],
+    },
+  });
 });
 </script>
 
 <template>
   <div class="note-detail-container">
-    <h1 class="note-title">{{ isNewNote ? '新建笔记' : note.title }}</h1>
-    <p class="note-date">{{ note.date }}</p>
+    <h1 class="page-title">{{ isNewNote ? '新建笔记' : '编辑笔记' }}</h1>
+    
+    <div class="note-form">
+      <label for="note-title">标题</label>
+      <input v-model="note.title" id="note-title" type="text" :disabled="!isEditing" />
 
-    <!-- 编辑模式下显示输入框 -->
-    <div class="note-content">
-      <template v-if="isEditing">
-        <input v-model="note.title" class="note-title-input" placeholder="请输入笔记标题" required />
-        <textarea v-model="note.content" class="note-textarea" placeholder="编辑笔记内容" required></textarea>
-      </template>
-      <template v-else>
-        <!-- <h3>{{ note.title }}</h3> -->
-        <p>{{ note.content }}</p>
-      </template>
-    </div>
+      <label for="note-content">内容</label>
+      <!-- 使用 Quill 编辑器的容器 -->
+      <div id="editor-container" :disabled="!isEditing"></div>
 
-    <div class="note-actions">
-      <button v-if="isEditing" @click="saveNote" class="view-button">保存</button>
-      <button v-if="isEditing" @click="cancelEdit" class="view-button">取消</button>
-      <button v-else @click="startEditing" class="view-button">编辑</button>
+      <label for="note-tag">标签</label>
+      <input v-model="note.tag" id="note-tag" type="text" :disabled="!isEditing" />
+
+      <div class="actions">
+        <button @click="saveNote" :disabled="!isEditing">保存</button>
+        <button @click="cancelEdit">取消</button>
+        <button v-if="!isEditing" @click="startEditing">编辑</button>
+      </div>
     </div>
   </div>
 </template>
@@ -120,56 +179,36 @@ onMounted(() => {
 <style scoped>
 .note-detail-container {
   padding: 20px;
-  font-family: Arial, sans-serif;
 }
-
-.note-title {
-  font-size: 2rem;
+.page-title {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.note-form label {
   font-weight: bold;
 }
-
-.note-date {
-  font-size: 1rem;
-  color: #888;
-}
-
-.note-content {
-  margin-top: 20px;
-  font-size: 1.25rem;
-  line-height: 1.6;
-}
-
-.note-textarea {
-  width: 100%;
-  height: 200px;
-  padding: 10px;
-  font-size: 1rem;
-  border: 1px solid #ddd;
+.note-form input,
+.note-form textarea {
+  padding: 8px;
+  border: 1px solid #ccc;
   border-radius: 4px;
-  resize: none;
 }
-
-.note-actions {
+#editor-container {
+  height: 400px; /* 设置编辑器的高度 */
+}
+.actions {
   margin-top: 20px;
 }
-
-.view-button {
-  background-color: #4CAF50;
-  color: white;
+.actions button {
+  padding: 8px 16px;
   border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
   border-radius: 4px;
+  cursor: pointer;
   margin-right: 10px;
-}
-
-.view-button:hover {
-  background-color: #45a049;
-}
-
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
 }
 </style>
