@@ -115,11 +115,20 @@ const renameFolder = (folder: Notefiles) => {
 
 // 删除文件夹
 const deleteFolder = (folder: Notefiles) => {
-  if (confirm(`确定要删除文件夹 "${folder.folder_name}" 吗？`)) {
-    request.post(`/ez-note/folder/delete`, { data: { id: folder.id } })
+  if (confirm(`确定要删除文件夹 "${folder.name}" 吗？`)) {
+    // 创建 FormData
+    const formData = new FormData();
+    formData.append('folder_id', String(folder.id)); // 确保 ID 转换为字符串
+
+    request
+      .post(`/ez-note/folder/delete`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data', // 设置 Content-Type
+        },
+      })
       .then(response => {
         if (response.code === 0) {
-          
+          // 删除成功后从列表移除文件夹
           folders.value = folders.value.filter(f => f.id !== folder.id);
         } else {
           alert(response.msg);
@@ -131,6 +140,7 @@ const deleteFolder = (folder: Notefiles) => {
       });
   }
 };
+
 
 onMounted(() => {
   getFolders();  // 获取文件夹数据
