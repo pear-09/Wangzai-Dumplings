@@ -92,7 +92,7 @@ def get_all_folders_view(request):
 
 @csrf_exempt  # 禁用 CSRF 验证
 def rename_folder_view(request):
-    if request.method == 'PUT':
+    if request.method == 'POST':  # 将请求方法改为 POST
         # 验证并刷新令牌
         try:
             token = verify_and_refresh_token(request)
@@ -133,12 +133,12 @@ def rename_folder_view(request):
             }
         })
 
-    # 如果请求方法不是 PUT，则返回错误信息
+    # 如果请求方法不是 POST，则返回错误信息
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
 @csrf_exempt  # 禁用 CSRF 验证
-def rename_folder_view(request):
-    if request.method == 'PUT':
+def delete_folder_view(request):
+    if request.method == 'POST':  # 将请求方法改为 POST
         # 验证并刷新令牌
         try:
             token = verify_and_refresh_token(request)
@@ -147,16 +147,12 @@ def rename_folder_view(request):
         except Exception as e:
             return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
 
-        # 将 PUT 请求中的 form-data 数据解析到 QueryDict 中
-        put_data = QueryDict(request.body)
+        # 获取请求中的文件夹ID
+        folder_id = request.POST.get('folder_id')
 
-        # 获取请求中的文件夹ID和新名称
-        folder_id = put_data.get('folder_id')
-        new_name = put_data.get('name')
-
-        # 验证文件夹ID和名称是否提供
-        if not folder_id or not new_name:
-            return JsonResponse({"code": 1, "msg": "参数缺失：需要 folder_id 和 name"})
+        # 验证文件夹ID是否提供
+        if not folder_id:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 folder_id"})
 
         # 查询指定 ID 的文件夹
         try:
@@ -164,23 +160,11 @@ def rename_folder_view(request):
         except Folder.DoesNotExist:
             return JsonResponse({"code": 1, "msg": "文件夹不存在或无权限"})
 
-        # 更新文件夹名称
-        folder.name = new_name
-        folder.save()
+        # 删除文件夹
+        folder.delete()
 
-        # 返回更新后的文件夹信息
-        return JsonResponse({
-            "code": 0,
-            "msg": "success",
-            "data": {
-                "id": folder.id,
-                "user_id": folder.user_id,
-                "name": folder.name,
-                "created_at": folder.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "updated_at": folder.updated_at.strftime("%Y-%m-%d %H:%M:%S") if folder.updated_at else None,
-                "deleted_at": folder.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if folder.deleted_at else None
-            }
-        })
+        # 返回删除成功的响应
+        return JsonResponse({"code": 0, "msg": "success"})
 
-    # 如果请求方法不是 PUT，则返回错误信息
+    # 如果请求方法不是 POST，则返回错误信息
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
