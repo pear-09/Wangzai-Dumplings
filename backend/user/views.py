@@ -15,7 +15,7 @@ def register_view(request):
         password = request.POST.get('password')
 
         if not username or not password:
-            return JsonResponse({"code": 1, "msg": "用户名和密码不能为空"})
+            return JsonResponse({"code": 1, "msg": "用户名和密码不能为空！"})
 
         form = RegisterForm(request.POST)
 
