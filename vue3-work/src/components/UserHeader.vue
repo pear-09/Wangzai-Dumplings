@@ -58,7 +58,7 @@ body {
 
 #app .UserHeader .logo{
     width:600px;
-    
+
     height: 100%;
     padding: 0 20px;
     margin-left: 10px;
@@ -78,7 +78,7 @@ body {
     justify-content:flex-end;
     align-items: end;
     margin-top: 10px;
-    border-radius: 5px; 
+    border-radius: 5px;
     /* background-color:bisque; */
 }
 

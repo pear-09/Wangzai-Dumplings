@@ -1,95 +1,171 @@
 <template>
-    <div class="schedule">
-      <h1>当天任务</h1>
-      <div v-if="loading">加载中...</div>
-      <div v-if="error" class="error">{{ error }}</div>
-      <div v-if="tasks.length">
-        <ul>
-          <li v-for="task in tasks" :key="task.id">
-            <div class="task">
-              <h3>{{ task.title }}</h3>
-              <p>{{ task.description }}</p>
-              <span>时间: {{ task.time }}</span>
-              <span>状态: {{ task.status }}</span>
-            </div>
-          </li>
-        </ul>
-      </div>
-      <div v-else>
-        <p>没有任务</p>
-      </div>
-    </div>
-  </template>
-  
-  <script lang="ts">
-  import { defineComponent, ref, onMounted } from 'vue';
-  import axios from 'axios';
-  import type { GetTasksResponse, Task } from '@/types/api/getTasks'; // 导入接口类型
-  
-  export default defineComponent({
-    name: 'Schedule',
-    setup() {
-      // 状态管理
-      const tasks = ref<Task[]>([]);  // 存储任务列表
-      const loading = ref<boolean>(true);  // 加载状态
-      const error = ref<string>('');  // 错误信息
-  
-      // 获取任务数据的函数
-      const fetchTasks = async () => {
-        try {
-            const apiUrl = import.meta.env.VITE_API_URL;            // 从环境变量获取 API 地址
-  
-          const response = await axios.get<GetTasksResponse>(`${apiUrl}/ez-note/date/get`);
-  
-          // 如果请求成功，更新任务数据
-          if (response.data.code === 0) {
-            tasks.value = response.data.data;  // 获取任务列表并更新
-          } else {
-            error.value = '获取任务失败: ' + response.data.msg;  // 错误信息处理
-          }
-        } catch (err) {
-          error.value = '加载任务时发生错误: ' + err;  // 错误信息处理
-        } finally {
-          loading.value = false;  // 无论成功与否，都将加载状态设置为 false
+  <div class="schedule-container">
+    <div id="calendar"></div>
+    <!-- 弹窗表单，用于增删改 -->
+    <Modal v-if="modalVisible" @close="modalVisible = false">
+      <form @submit.prevent="handleFormSubmit">
+        <div>
+          <label>Title:</label>
+          <input v-model="currentEvent.title" required />
+        </div>
+        <div>
+          <label>Description:</label>
+          <textarea v-model="currentEvent.description"></textarea>
+        </div>
+        <div>
+          <label>Time:</label>
+          <input type="datetime-local" v-model="currentEvent.time" required />
+        </div>
+        <button type="submit">Save</button>
+      </form>
+    </Modal>
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent, onMounted, ref } from "vue";
+import { Calendar } from "@fullcalendar/core";
+import type { EventInput } from "@fullcalendar/core";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import type { DateClickArg } from "@fullcalendar/interaction";
+import type { EventClickArg } from "@fullcalendar/core";
+import axios from "axios";
+import Modal from "@/components/Modal.vue";
+
+// 引入 TaskData 类型
+import type { TaskData } from "@/types/api/UpdateTask.d.ts"; // 请根据实际路径调整
+
+export default defineComponent({
+  name: "ScheduleView",
+  components: { Modal },
+  setup() {
+    const modalVisible = ref(false);
+    const currentEvent = ref<{
+      id: string | null | undefined;
+      title: string;
+      description: string;
+      time: string;
+    }>({
+      id: null,
+      title: "",
+      description: "",
+      time: "",
+    });
+
+    const calendar = ref<Calendar | null>(null);
+    const events = ref<EventInput[]>([]);
+
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/ez-note/date/get`
+        );
+        if (response.data.code === 0) {
+          events.value = response.data.data.map((event: TaskData) => ({
+            id: event.id.toString(), // 将 id 转换为 string
+            title: event.title,
+            start: event.time,
+            extendedProps: {
+              description: event.description,
+            },
+          }));
         }
-      };
-  
-      // 在组件加载时调用获取任务数据的函数
-      onMounted(() => {
-        fetchTasks();
-      });
-  
-      return {
-        tasks,
-        loading,
-        error
-      };
-    }
-  });
-  </script>
-  
-  <style scoped>
-  .schedule {
-    padding: 20px;
-  }
-  
-  .task {
-    border: 1px solid #ccc;
-    padding: 10px;
-    margin: 10px 0;
-  }
-  
-  .task h3 {
-    margin: 0;
-  }
-  
-  .task p {
-    margin: 5px 0;
-  }
-  
-  .error {
-    color: red;
-    font-weight: bold;
-  }
-  </style>
-  
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      }
+    };
+
+    const initializeCalendar = async () => {
+      await fetchEvents();
+      const calendarEl = document.getElementById("calendar");
+
+      if (calendarEl) {
+        calendar.value = new Calendar(calendarEl, {
+          plugins: [dayGridPlugin, interactionPlugin],
+          initialView: "dayGridMonth",
+          events: events.value,
+          dateClick(info: DateClickArg) {
+            currentEvent.value = {
+              id: null,
+              title: "",
+              description: "",
+              time: info.dateStr,
+            };
+            modalVisible.value = true;
+          },
+          eventClick(info: EventClickArg) {
+            const eventId = info.event.id || ""; // 确保 eventId 为 string
+            const event = events.value.find((e) => e.id === eventId);
+            if (event) {
+              currentEvent.value = {
+                id: event.id ?? null, // 处理可能的 undefined
+                title: event.title as string,
+                description: event.extendedProps?.description || "",
+                time: event.start as string,
+              };
+              modalVisible.value = true;
+            }
+          },
+        });
+        calendar.value.render();
+      } else {
+        console.error("Calendar element not found");
+      }
+    };
+
+    const handleFormSubmit = async () => {
+      try {
+        if (currentEvent.value.id) {
+          // Update event
+          await axios.post(`${import.meta.env.VITE_API_URL}/ez-note/date/modify`, {
+            date_id: Number(currentEvent.value.id), // 将 id 转换为 number
+            title: currentEvent.value.title,
+            description: currentEvent.value.description,
+            time: currentEvent.value.time,
+          });
+        } else {
+          // Create event
+          await axios.post(`${import.meta.env.VITE_API_URL}/ez-note/date/create`, {
+            title: currentEvent.value.title,
+            description: currentEvent.value.description,
+            time: currentEvent.value.time,
+          });
+        }
+        modalVisible.value = false;
+        // Refresh calendar events
+        if (calendar.value) {
+          await fetchEvents();
+          calendar.value.removeAllEvents();
+          calendar.value.addEventSource(events.value);
+        }
+      } catch (error) {
+        console.error("Error saving event:", error);
+      }
+    };
+
+    onMounted(() => {
+      initializeCalendar();
+    });
+
+    return {
+      modalVisible,
+      currentEvent,
+      handleFormSubmit,
+    };
+  },
+});
+</script>
+
+<style scoped>
+.schedule-container {
+  padding: 20px;
+}
+#calendar {
+  max-width: 900px;
+  margin: 0 auto;
+}
+form div {
+  margin-bottom: 10px;
+}
+</style>
