@@ -7,6 +7,7 @@ from .forms import FolderQueryForm
 from .models import Note, Tag
 from user.utils import verify_and_refresh_token  # 自定义的 token 验证函数
 from rest_framework_simplejwt.tokens import AccessToken
+import json
 
 @csrf_exempt
 def create_note_view(request):
@@ -256,4 +257,56 @@ def delete_note_view(request):
         # 返回删除成功的响应
         return JsonResponse({"code": 0, "msg": "笔记删除成功"})
 
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+@csrf_exempt
+def update_note_tag_view(request):
+    if request.method == 'POST':  # 使用 POST 方法
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 获取前端提交的数据
+        note_id = request.POST.get('note_id')  # 获取笔记 ID
+        tag_name = request.POST.get('tag')  # 获取标签名称
+
+        # 验证必要参数
+        if not note_id or not tag_name:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id 和 tag"})
+
+        # 查询指定的笔记
+        try:
+            note = Note.objects.get(id=note_id, user_id=user_id)
+        except Note.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "笔记不存在或无权限修改"})
+
+        note.tags.clear()
+        
+        # 查询或创建标签
+        tag, created = Tag.objects.get_or_create(name=tag_name)
+
+        # 关联标签到笔记
+        note.tags.add(tag)
+
+        # 构建响应数据
+        note_data = {
+            "id": note.id,
+            "user_id": note.user_id,
+            "title": note.title,
+            "content": note.content,
+            "tags": [tag.name for tag in note.tags.all()],  # 返回所有关联的标签
+            "folder_id": note.folder_id,
+            "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S") if note.updated_at else None,
+            "deleted_at": note.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if note.deleted_at else None,
+        }
+
+        # 返回成功响应
+        return JsonResponse({"code": 0, "msg": "标签更新成功", "data": note_data})
+
+    # 如果请求方法不是 POST，则返回错误信息
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})

@@ -8,4 +8,5 @@ urlpatterns = [
     path('query',views.get_note_view, name='query'),
     path('query-all',views.get_notes_in_folder_view, name='query-all'),
     path('delete',views.delete_note_view, name='delete'),
+    path('update/tag', views.update_note_tag_view, name='update_note_tag'),
 ]
