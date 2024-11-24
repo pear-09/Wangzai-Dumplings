@@ -1,4 +1,4 @@
-### 项目依赖
+clear### 项目依赖
 见目录下requirements.txt文件
 
 ### 后端服务启动

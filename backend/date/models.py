@@ -31,9 +31,10 @@ class Date(models.Model):
             return last_date.id + 1
         return 1  # 如果没有记录，则从1开始
 
-    def save(self, *args, **kwargs):
-        if hasattr(self,'starttime'):
-            self.created_at = self.starttime
-        if hasattr(self, 'endtime'):
-            self.deleted_at = self.endtime
-        super(Date, self).save(*args, **kwargs)
+def save(self, *args, **kwargs):
+        # 保持 get_created_at_default 和 get_deleted_at_default 的逻辑，确保默认值被正确赋值
+        if not self.created_at:
+            self.created_at = get_created_at_default()  # 确保 created_at 使用默认值
+        if not self.deleted_at:
+            self.deleted_at = get_deleted_at_default()  # 确保 deleted_at 使用默认值
+        super(Date, self).save(*args, **kwargs)  # 调用父类的 save 方法
