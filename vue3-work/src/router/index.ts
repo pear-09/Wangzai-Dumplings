@@ -6,6 +6,7 @@ import NoteFile from '@/views/NoteFile.vue'
 import Register from '@/views/Register.vue'
 import Schedule from '@/views/Schedule.vue'
 import Write from '@/views/Write.vue'
+import WriteEdit from '@/views/WriteEdit.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 
@@ -35,6 +36,12 @@ const router = createRouter({
       name:'xiezuo',
       path:'/write',
       component:Write
+  },
+  {
+    path: '/write-edit/:id',
+    name: 'writeEdit',
+    component: WriteEdit,
+    props: true, // 传递路由参数作为 prop 给组件
   },
   {
     name:'denglu',
