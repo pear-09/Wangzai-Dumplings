@@ -24,29 +24,31 @@ const note = ref<Note>({
   deleted_at: null
 });
 
-const isEditing = ref(false);
+// const isEditing = ref(false);
 
 // 初始化 Quill 编辑器
 const quillEditor = ref<any>(null); 
 
-const API_URL = import.meta.env.VITE_API_URL ;
-
 // 获取笔记详情
-const fetchNote = async (id: string) => {
+const fetchNote = async (note_id: string) => {
   try {
-    const response = await request.get<GetNoteDetailResponse>(`${API_URL}/ez-note/note/query`, { params: { id } });
+    const response = await request.get<GetNoteDetailResponse>(`/ez-note/note/query`, { params: { note_id } });
     if (response.code === 0) {
       const fetchedNote = response.data;
       note.value = { ...fetchedNote };
-      // 初始化 Quill 编辑器的内容
       if (quillEditor.value) {
-        quillEditor.value.root.innerHTML = fetchedNote.content; // 将获取的笔记内容插入编辑器
+        quillEditor.value.root.innerHTML = fetchedNote.content; // 填充 Quill 编辑器内容
       }
+    } else {
+      alert('未找到该笔记，返回上一页');
+      router.push({ name: 'bjwjj' }); // 跳转到笔记列表页
     }
   } catch (error) {
     console.error('请求失败', error);
+    alert('拉取笔记失败，请稍后重试');
   }
 };
+
 
 // 初始化新建笔记
 const initNewNote = () => {
@@ -64,55 +66,40 @@ const initNewNote = () => {
 };
 
 // 启动编辑模式
-const startEditing = () => {
-  isEditing.value = true;
-  console.log(folderId)
-};
+// const startEditing = () => {
+//   isEditing.value = true;
+//   console.log(folderId)
+// };
 
 // 保存笔记
 const saveNote = async () => {
   try {
-    // 准备数据
-    const noteData = {
-      title: note.value.title,
-      content: quillEditor.value.root.innerHTML, // 从 Quill 编辑器获取内容
-      folder_id: note.value.folder_id,
-      tag: note.value.tag
-    };
+    // 创建 FormData
+    const formData = new FormData();
+    formData.append('note_id', note.value.id || ''); // 如果是新建笔记，不发送 id
+    formData.append('title', note.value.title);
+    formData.append('content', quillEditor.value.root.innerHTML);
+    formData.append('folder_id', note.value.folder_id);
+    formData.append('tag', note.value.tag);
+    console.log(isNewNote);
 
-    // 创建 URL 编码格式的数据
-    const urlEncodedData = new URLSearchParams();
-    for (const [key, value] of Object.entries(noteData)) {
-      urlEncodedData.append(key, value);
-    }
+    // 设置请求的 URL
+    const apiUrl = isNewNote ? '/ez-note/note/create' : '/ez-note/note/update/content';
 
-    // 如果是新建笔记
-    let response;
-    if (isNewNote) {
-      // 创建新笔记
-      response = await request.post(`${API_URL}/ez-note/note/create`, urlEncodedData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      });
-    } else {
-      // 更新现有笔记
-      response = await request.post(`${API_URL}/ez-note/note/update/content`, urlEncodedData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      });
-    }
+    // 发送请求
+    const response = await request.post(apiUrl, formData);
 
-    // 处理响应
+    // 根据响应处理
     if (response.code === 0) {
-      // 成功后跳转到笔记列表页面
-      router.push({ name: 'bjwjj' });
+      alert(isNewNote ? '笔记创建成功' : '笔记更新成功');
+      // console.log(isNewNote);
+      router.push({ name: 'bjwjj' }); // 跳转到笔记列表页面
     } else {
-      console.error('保存失败', response.msg);
+      alert(`保存失败：${response.msg}`);
     }
   } catch (error) {
-    console.error('请求失败', error);
+    console.error('保存失败:', error);
+    alert('保存失败，请稍后重试');
   }
 };
 
@@ -158,19 +145,21 @@ onMounted(() => {
     
     <div class="note-form">
       <label for="note-title">标题</label>
-      <input v-model="note.title" id="note-title" type="text" :disabled="!isEditing" />
+      <input v-model="note.title" id="note-title" type="text" />
 
       <label for="note-content">内容</label>
       <!-- 使用 Quill 编辑器的容器 -->
-      <div id="editor-container" :disabled="!isEditing"></div>
+      <div id="editor-container"> 
+        
+      </div>
 
       <label for="note-tag">标签</label>
-      <input v-model="note.tag" id="note-tag" type="text" :disabled="!isEditing" />
+      <input v-model="note.tag" id="note-tag" type="text" />
 
       <div class="actions">
-        <button @click="saveNote" :disabled="!isEditing">保存</button>
+        <button @click="saveNote" >保存</button>
         <button @click="cancelEdit">取消</button>
-        <button v-if="!isEditing" @click="startEditing">编辑</button>
+        <!-- <button v-if="!isEditing" @click="startEditing">编辑</button> -->
       </div>
     </div>
   </div>

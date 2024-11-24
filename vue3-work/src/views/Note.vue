@@ -30,7 +30,7 @@ const isManaging = ref(false);
 // 获取该文件夹下的笔记
 const getNotes = async (folderId: number) => {
   try {
-    const response = await request.get<GetNotesResponse>(`${import.meta.env.VITE_API_URL}/ez-note/note/query-all`, {
+    const response = await request.get<GetNotesResponse>(`/ez-note/note/query-all`, {
       params: { folder_id: folderId }
     });
 
@@ -45,8 +45,6 @@ const getNotes = async (folderId: number) => {
     alert('请求失败，请稍后重试');
   }
 };
-
-
 
 // 根据文件夹 ID 获取相应的文件夹信息
 onMounted(() => {
@@ -75,33 +73,34 @@ const goToNewNote = () => {
   router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id: 'new' } });
 };
 
-
-
-// 删除笔记
+//删除笔记
 const deleteNote = async (event: Event, noteId: string) => {
   // 阻止事件冒泡，防止点击删除按钮时触发跳转
   event.stopPropagation();
 
   // 确认删除操作
-  if (confirm('确定要删除这篇笔记吗？')) {
+  if (confirm("确定要删除这篇笔记吗？")) {
     try {
-      const response = await request.delete(`${import.meta.env.VITE_API_URL}/ez-note/note/delete`, {
-        data: { id: noteId }  // 传递要删除的笔记 ID
-      });
+      // 使用 FormData 构造请求体
+      const formData = new FormData();
+      formData.append("note_id", noteId);
+
+      // 发起 POST 请求，拦截器会自动设置 Content-Type
+      const response = await request.post(`/ez-note/note/delete`, formData);
 
       if (response.code === 0) {
         // 删除成功后，更新笔记列表
         const noteIndex = currentFolder.value.notes.findIndex(note => note.id.toString() === noteId);
         if (noteIndex !== -1) {
-          currentFolder.value.notes.splice(noteIndex, 1);  // 从本地删除该笔记
+          currentFolder.value.notes.splice(noteIndex, 1); // 从本地删除该笔记
         }
-        alert('笔记删除成功');
+        alert("笔记删除成功");
       } else {
-        alert(response.data.msg);  // 如果删除失败，显示错误信息
+        alert(response.msg); // 如果删除失败，显示错误信息
       }
     } catch (error) {
-      console.error('删除笔记失败:', error);
-      alert('请求失败，请稍后重试');
+      console.error("删除笔记失败:", error);
+      alert("请求失败，请稍后重试");
     }
   }
 };
