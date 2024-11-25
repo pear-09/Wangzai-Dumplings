@@ -310,3 +310,62 @@ def update_note_tag_view(request):
 
     # 如果请求方法不是 POST，则返回错误信息
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+
+
+@csrf_exempt
+def search_notes_by_tag_view(request):
+    if request.method == 'GET':
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 获取参数
+        tag_name = request.GET.get('tag')
+        if not tag_name:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 tag"})
+
+        # 处理分页参数
+        def get_int_param(param_value, default_value):
+            try:
+                return int(param_value) if param_value else default_value
+            except ValueError:
+                return default_value
+
+        limit = get_int_param(request.GET.get('limit'), 10)
+        offset = get_int_param(request.GET.get('offset'), 0)
+
+        try:
+            tag = Tag.objects.get(name=tag_name)
+        except Tag.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "标签不存在"})
+
+        notes = Note.objects.filter(user_id=user_id, tags=tag).order_by('-created_at')[offset:offset+limit]
+
+        notes_data = [
+            {
+                "id": note.id,
+                "user_id": note.user_id,
+                "title": note.title,
+                "content": note.content,
+                "folder_id": note.folder_id,
+                "tag": tag_name,
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S") if note.updated_at else None,
+                "deleted_at": note.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if note.deleted_at else None,
+            }
+            for note in notes
+        ]
+
+        return JsonResponse({
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "notes": notes_data,
+            }
+        })
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
