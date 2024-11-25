@@ -24,4 +24,5 @@ urlpatterns = [
     path('ez-note/note/',include('note.urls')),
     path("ez-note/folder/", include("folder.urls")),  # 添加 folder 应用的路由
     path("ez-note/date/", include("date.urls")),  # 添加 date 应用的路由
+    path("ez-note/AI/", include("AI.urls")),
 ]

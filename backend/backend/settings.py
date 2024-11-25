@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,6 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-kh+rxv9c9u3sxp2mig%r_r!ojt#@-6gvceo!xn1!@a-h&v(ikp"
+
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+KIMI_API_KEY = config('KIMI_API_KEY', default='')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -45,6 +49,7 @@ INSTALLED_APPS = [
     "note",
     'folder',  # 添加 folder 应用
     'date',
+    'AI',
 ]
 
 MIDDLEWARE = [
