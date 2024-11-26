@@ -123,31 +123,52 @@ from django.views.decorators.csrf import csrf_exempt
 from.models import Date
 
 
+import datetime
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Date
+
 @csrf_exempt
 def get_view(request):
     if request.method == 'GET':
+        try:
+            # 1. 验证并刷新 token
+            token = verify_and_refresh_token(request)  # 使用自定义函数来验证并刷新 token
+            access_token = AccessToken(token)  # 解析 token
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 2. 获取日期参数（如果有）
         time_param = request.GET.get('time')
+        
         if time_param:
             try:
-                # 尝试将前端传来的时间参数解析为datetime对象，假设格式为 '%Y-%m-%d'（可根据实际情况调整格式字符串）
+                # 尝试将前端传来的时间参数解析为 datetime 对象，假设格式为 '%Y-%m-%d'（可根据实际情况调整格式字符串）
                 parsed_time = datetime.datetime.strptime(time_param, '%Y-%m-%d')
+                # 输出以调试
+                print(f"Received date: {parsed_time}")
+                
                 # 使用日期部分进行过滤，这里使用 __date 后缀来只匹配日期部分
-                schedules = Date.objects.filter(time__date=parsed_time.date())
+                # 调整过滤条件，确保日期部分匹配
+                schedules = Date.objects.filter(time__date=parsed_time.date(), user_id=user_id)  # 根据 user_id 过滤日程
             except ValueError:
                 return JsonResponse({"code": 1, "msg": "时间参数格式不正确"})
         else:
-            # 获取当前日期
+            # 如果没有传递时间参数，默认返回当天的日程
             today = datetime.date.today()
-            # 使用当前日期进行过滤
-            schedules = Date.objects.filter(time__date=today)
+            schedules = Date.objects.filter(time__date=today, user_id=user_id)  # 根据 user_id 过滤日程
 
+        # 将查询结果转换为 JSON 格式
         schedule_list = []
         for schedule in schedules:
             schedule_obj = {
                 "id": schedule.id,
                 "title": schedule.title,
                 "description": schedule.description,
-                "time": schedule.time.isoformat(),  # 将时间格式化为ISO 8601字符串，方便前端处理
+                "time": schedule.time.isoformat(),  # 将时间格式化为 ISO 8601 字符串，方便前端处理
                 "status": schedule.status,
                 "created_at": schedule.created_at.isoformat(),
                 "updated_at": schedule.updated_at.isoformat(),
@@ -155,12 +176,15 @@ def get_view(request):
             }
             schedule_list.append(schedule_obj)
 
+        # 返回成功响应
         return JsonResponse({
             "code": 0,
             "msg": "success",
             "data": schedule_list
         })
+
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
 
 # 修改日程接口
 @csrf_exempt
