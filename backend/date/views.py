@@ -8,7 +8,10 @@ import json
 from user.utils import verify_and_refresh_token  # 自定义的 token 验证函数
 from rest_framework_simplejwt.tokens import AccessToken
 import logging
+from.forms import GenerateDatePlanForm
 logger = logging.getLogger(__name__)
+import re
+
 
 @csrf_exempt
 def create_view(request):
@@ -327,3 +330,59 @@ def delete_schedule(request):
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
+@csrf_exempt
+def generate_view(request):
+    if request.method == 'POST':
+        try:
+            # 1. 验证并刷新token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token验证失败: {str(e)}"})
+
+        try:
+            request_body = request.body.decode('utf-8')
+            # 使用正则表达式去除不可见字符和多余空格
+            request_body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]+', '', request_body)
+            request_body = request_body.strip()
+            form = GenerateDatePlanForm(json.loads(request_body))
+            if not form.is_valid():
+                return JsonResponse({"code": 1, "msg": f"参数验证失败: {form.errors}"})
+
+            startday_str = form.cleaned_data['startday']
+            # 将startday字符串转换为datetime类型
+            startday = datetime.datetime.strptime(startday_str, '%Y-%m-%d')
+            plan_data = form.cleaned_data['plan']
+
+            # 在这里进行日程生成并存储到数据库的操作
+            for plan in plan_data:
+                day_offset = plan['day']
+                content = plan['content']
+                # 正确计算日期
+                time = startday + datetime.timedelta(days=day_offset)
+                starttime = time
+                endtime = time
+                date_id = Date.get_next_id()
+                new_date = Date(
+                    id=date_id,
+                    user_id=user_id,
+                    title=content,
+                    description=content,
+                    time=time,
+                    starttime=starttime,
+                    endtime=endtime,
+                    status='未完成'
+                )
+                new_date.save()
+
+            return JsonResponse({
+                "code": 0,
+                "msg": "日程生成并存储成功"
+            })
+        except json.JSONDecodeError as e:
+            return JsonResponse({"code": 1, "msg": f"JSON解析错误: {str(e)}"}, status=400)
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"服务器错误: {str(e)}"}, status=500)
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
