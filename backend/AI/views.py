@@ -59,7 +59,7 @@ def ai_summary(request):
                 {"role": "user", "content": prompt}
             ],
             "model": model,
-            "max_tokens": length
+            "max_tokens": length + 100
         }
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
@@ -115,6 +115,8 @@ def ai_explain(request):
         else:
             length = 150  # 默认摘要长度
 
+        length = min(length, 2000)
+
         # 转换并验证 AI_model
         if AI_model is None:
             return JsonResponse({"code": 1, "msg": "请选择AI模型"}, status=400)
@@ -137,7 +139,7 @@ def ai_explain(request):
                 {"role": "user", "content": prompt}
             ],
             "model": model,
-            "max_tokens": length
+            "max_tokens": length + 100
         }
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
@@ -526,6 +528,8 @@ def ai_generate(request):
         else:
             length = 300  # 默认长度
 
+        length = min(length, 2000)
+
         # 验证必填字段
         if not prompt:
             return JsonResponse({"code": 1, "msg": "提示词不能为空"}, status=400)
@@ -581,7 +585,7 @@ def ai_generate(request):
                 {"role": "user", "content": prompt_instructions}
             ],
             "model": model,
-            "max_tokens": min(length,2000)
+            "max_tokens": length + 100
         }
         headers = {
             "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
@@ -607,3 +611,310 @@ def ai_generate(request):
             return JsonResponse({"code": 1, "msg": f"请求异常：{str(e)}"}, status=500)
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
+
+@csrf_exempt
+def ai_continue(request):
+    if request.method == 'POST':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"}, status=401)
+
+        # 获取前端请求数据
+        text = request.POST.get('text', '').strip()
+        length = request.POST.get('length', None)
+        AI_model = request.POST.get('AI_model', None)
+
+        if not text:
+            return JsonResponse({"code": 1, "msg": "需要续写的文本内容不能为空"}, status=400)
+
+        
+        if length:
+            try:
+                length = int(length)
+                if length <= 0:
+                    raise ValueError
+            except ValueError:
+                return JsonResponse({"code": 1, "msg": "length必须是正整数"}, status=400)
+        else:
+            length = 300  # 默认摘要长度
+
+        length = min(length, 2000)
+        # 转换并验证 AI_model
+        if AI_model is None:
+            return JsonResponse({"code": 1, "msg": "请选择AI模型"}, status=400)
+        
+        try:
+            AI_model = int(AI_model)
+            if AI_model not in [0, 1]:
+                raise ValueError
+        except ValueError:
+            return JsonResponse({"code": 1, "msg": "请选择正确的AI模型"}, status=400)
+        
+        # 配置API请求
+        model = "gpt-4o-mini" if AI_model == 0 else "moonshot-v1-8k"
+        api_url = "https://api.gptsapi.net/v1/chat/completions" if AI_model == 0 else "https://api.moonshot.cn/v1/chat/completions" 
+        
+        prompt = f"请根据以下文本续写内容，保持语言风格和表述尽可能与原文相同，续写只输出新的内容，输出不要超过{length}字：\n\n{text}"
+        payload = {
+            "messages": [
+                {"role": "system", "content": "你是一个擅长续写文本的助手，能够保持原文的语言风格和表达方式。"},
+                {"role": "user", "content": prompt}
+            ],
+            "model": model,
+            "max_tokens": length + 100
+        }
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = requests.post(api_url, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                continuation = data['choices'][0]['message']['content'].strip()
+                return JsonResponse({
+                    "code": 0,
+                    "msg": "success",
+                    "continuation": continuation
+                })
+            else:
+                return JsonResponse(
+                    {"code": 1, "msg": f"调用失败，状态码：{response.status_code}", "details": response.text},
+                    status=response.status_code
+                )
+        except requests.RequestException as e:
+            return JsonResponse({"code": 1, "msg": f"请求异常：{str(e)}"}, status=500)
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
+
+@csrf_exempt
+def ai_inspiration(request):
+    if request.method == 'POST':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"}, status=401)
+
+        # 获取前端请求数据
+        prompt = request.POST.get('prompt', '').strip()
+        length = request.POST.get('length', None)
+        content_type = request.POST.get('content_type', 'inspiration').strip().lower()
+        AI_model = request.POST.get('AI_model', None)
+
+        if not prompt:
+            return JsonResponse({"code": 1, "msg": "写作要求或提示词不能为空"}, status=400)
+
+        # 处理并验证长度参数
+        if length:
+            try:
+                length = int(length)
+                if length <= 0:
+                    raise ValueError
+            except ValueError:
+                return JsonResponse({"code": 1, "msg": "length必须是正整数"}, status=400)
+        else:
+            length = 300  # 默认长度
+
+        length = min(length, 2000)  # 限制最大长度为2000
+
+        # 转换并验证 AI_model
+        if AI_model is None:
+            return JsonResponse({"code": 1, "msg": "请选择AI模型"}, status=400)
+        
+        try:
+            AI_model = int(AI_model)
+            if AI_model not in [0, 1]:
+                raise ValueError
+        except ValueError:
+            return JsonResponse({"code": 1, "msg": "请选择正确的AI模型"}, status=400)
+
+        # 验证并处理 content_type
+        valid_types = {
+            'inspiration': "写作灵感",
+            'outline': "有条理的写作大纲",
+            'title': "标题",
+            'character_bio': "角色设定",
+            'scene_description': "场景描述",
+            'dialogue': "对话内容",
+            'plot_twist': "情节转折",
+            'setting': "环境设定",
+            'synopsis': "故事摘要",
+            # 可根据需要添加更多类型
+        }
+
+        if content_type not in valid_types:
+            return JsonResponse({"code": 1, "msg": f"无效的类型。可选类型: {', '.join(valid_types.keys())}"}, status=400)
+
+        # 定义哪些类型只生成一个项目
+        single_item_types = {'title', 'character_bio', 'scene_description', 'dialogue', 'plot_twist', 'setting', 'synopsis'}
+
+        # 配置API请求
+        model = "gpt-4o-mini" if AI_model == 0 else "moonshot-v1-8k"
+        api_url = "https://api.gptsapi.net/v1/chat/completions" if AI_model == 0 else "https://api.moonshot.cn/v1/chat/completions" 
+        
+        # 构建提示信息和系统消息
+        if content_type in single_item_types:
+            prompt_instruction = (
+                f"请为以下文本内容生成{valid_types[content_type]}。"
+                f"只输出一个{valid_types[content_type]}，不要包含任何其他内容。"
+                f"输出内容不要超过{length}字。\n\n文本内容：\n\n{prompt}"
+            )
+            system_content = f"你是一个能够生成{valid_types[content_type]}的助手。请确保只输出一个{valid_types[content_type]}，不要输出多个点，不包含任何其他内容。"
+        else:
+            prompt_instruction = (
+                f"为以下文本内容生成{valid_types[content_type]}，"
+                f"输出内容不要超过{length}字。\n\n文本内容：\n\n{prompt}"
+            )
+            system_content = f"你是一个能够生成{valid_types[content_type]}的助手。"
+
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": prompt_instruction}
+            ],
+            "model": model,
+            "max_tokens": length + 100  # 估算token数，确保满足长度要求
+        }
+
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = requests.post(api_url, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                content = data['choices'][0]['message']['content'].strip()
+                
+                return JsonResponse({
+                    "code": 0,
+                    "msg": "success",
+                    content_type: content
+                })
+            else:
+                return JsonResponse(
+                    {"code": 1, "msg": f"调用失败，状态码：{response.status_code}", "details": response.text},
+                    status=response.status_code
+                )
+        except requests.RequestException as e:
+            return JsonResponse({"code": 1, "msg": f"请求异常：{str(e)}"}, status=500)
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
+
+import re
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import requests
+
+@csrf_exempt
+def ai_analysis(request):
+    if request.method == 'POST':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"}, status=401)
+
+        # 获取前端请求数据
+        text = request.POST.get('text', '').strip()
+        length = request.POST.get('length', None)
+        analysis_type = request.POST.get('type', 'analysis').strip().lower()
+        AI_model = request.POST.get('AI_model', None)
+
+        if not text:
+            return JsonResponse({"code": 1, "msg": "需要续写的文本内容不能为空"}, status=400)
+
+        # 处理并验证长度参数
+        if length:
+            try:
+                length = int(length)
+                if length <= 0:
+                    raise ValueError
+            except ValueError:
+                return JsonResponse({"code": 1, "msg": "length必须是正整数"}, status=400)
+        else:
+            length = 300  # 默认长度
+
+        length = min(length, 2000)  # 限制最大长度为2000
+
+        # 转换并验证 AI_model
+        if AI_model is None:
+            return JsonResponse({"code": 1, "msg": "请选择AI模型"}, status=400)
+        
+        try:
+            AI_model = int(AI_model)
+            if AI_model not in [0, 1]:
+                raise ValueError
+        except ValueError:
+            return JsonResponse({"code": 1, "msg": "请选择正确的AI模型"}, status=400)
+
+        # 定义有效的分析类型及其描述
+        valid_types = {
+            'analysis': "分析",
+            'evaluation': "评价",
+            'correction': "纠错并指出错误",
+            # 可根据需要添加更多类型
+        }
+
+        #验证并处理 analysis_type 参数
+        if analysis_type not in valid_types:
+            return JsonResponse({"code": 1, "msg": f"无效的类型。可选类型: {', '.join(valid_types.keys())}"}, status=400)
+        
+        # 配置API请求
+        model = "gpt-4o-mini" if AI_model == 0 else "moonshot-v1-8k"
+        api_url = "https://api.gptsapi.net/v1/chat/completions" if AI_model == 0 else "https://api.moonshot.cn/v1/chat/completions" 
+        
+        # 构建提示信息和系统消息
+        prompt_instruction = (
+            f"请为以下文本内容进行{valid_types[analysis_type]}。"
+            f"输出内容不要超过{length}字。\n\n文本内容：\n\n{text}"
+        )
+        system_content = f"你是一个能够进行{valid_types[analysis_type]}的助手。"
+
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": prompt_instruction}
+            ],
+            "model": model,
+            "max_tokens": length + 100  # 估算token数，确保满足长度要求
+        }
+
+        headers = {
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY if AI_model == 0 else settings.KIMI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = requests.post(api_url, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                content = data['choices'][0]['message']['content'].strip()
+                
+                return JsonResponse({
+                    "code": 0,
+                    "msg": "success",
+                    analysis_type: content
+                })
+            else:
+                return JsonResponse(
+                    {"code": 1, "msg": f"调用失败，状态码：{response.status_code}", "details": response.text},
+                    status=response.status_code
+                )
+        except requests.RequestException as e:
+            return JsonResponse({"code": 1, "msg": f"请求异常：{str(e)}"}, status=500)
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
+
+
