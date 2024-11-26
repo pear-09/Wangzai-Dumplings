@@ -31,6 +31,76 @@ const note = ref<Note>({
 
 // 初始化 Quill 编辑器
 const quillEditor = ref<any>(null);
+const isSummaryMode = ref(false); // 控制摘要模式
+const selectedText = ref<string>(''); // 记录选中的文本
+const showOptions = ref(false); // 控制“√”“×”的显示
+const optionsPosition = ref({ x: 0, y: 0 }); // 选项按钮的位置
+// 发送摘要接口请求（使用 FormData）
+const sendSummary = async (text: string) => {
+  try {
+    // 创建 FormData 对象
+    const formData = new FormData();
+    formData.append('text', text);
+    formData.append('AI_model', 1);
+    // 发送 POST 请求
+    const response = await request.post('/ez-note/AI/summary', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data', // 确保 Content-Type 设置为 multipart/form-data
+      },
+    });
+
+    if (response.code === 0) {
+      alert('摘要已发送');
+    } else {
+      console.error('摘要发送失败', response.msg);
+    }
+  } catch (error) {
+    console.error('发送失败', error);
+  }
+};
+
+
+// 进入摘要模式
+const enableSummaryMode = () => {
+  isSummaryMode.value = true;
+  document.addEventListener('mouseup', handleTextSelection);
+  sendAIMessage('生成摘要');
+};
+
+// 退出摘要模式
+const disableSummaryMode = () => {
+  isSummaryMode.value = false;
+  selectedText.value = '';
+  showOptions.value = false;
+  document.removeEventListener('mouseup', handleTextSelection);
+};
+
+// 处理鼠标选中文本
+const handleTextSelection = (event: MouseEvent) => {
+  const selection = window.getSelection();
+  const text = selection?.toString().trim();
+  if (text) {
+    selectedText.value = text;
+    showOptions.value = true;
+    optionsPosition.value = { x: event.pageX, y: event.pageY };
+  } else {
+    showOptions.value = false;
+  }
+};
+
+// 点击“√”发送选中摘要
+const confirmSelection = () => {
+  if (selectedText.value) {
+    sendSummary(selectedText.value);
+  }
+  showOptions.value = false;
+};
+
+// 点击“×”取消选中
+const cancelSelection = () => {
+  selectedText.value = '';
+  showOptions.value = false;
+};
 
 // 获取笔记详情
 const fetchNote = async (note_id: string) => {
@@ -283,14 +353,24 @@ onMounted(() => {
       </div>
       <div class="ai-chat-footer">
         <button @click="sendAIMessage('笔记美化')">笔记美化</button>
-        <button @click="sendAIMessage('生成摘要')">生成摘要</button>
-        <button @click="sendAIMessage('智能复习')">智能复习</button>
+        <button @click="enableSummaryMode">生成摘要</button>
+        <button @click="disableSummaryMode">退出摘要模式</button>
       </div>
+      
     </div>
 
     <!-- AI辅助按钮 -->
     <button v-if="!showAIChat" class="ai-assist-btn" @click="toggleAIChat">AI辅助</button>
   </div>
+   <!-- 摘要模式选项 -->
+   <div
+      v-if="showOptions"
+      class="selection-options"
+      :style="{ top: `${optionsPosition.y}px`, left: `${optionsPosition.x}px` }"
+    >
+      <button @click="confirmSelection">√</button>
+      <button @click="cancelSelection">×</button>
+    </div>
 </template>
 
 <style scoped>
@@ -486,5 +566,19 @@ input{
   background-color: #e1e1e1;
   padding: 8px;
   border-radius: 5px;
+}
+.note-container {
+  position: relative;
+}
+
+.selection-options {
+  position: absolute;
+  display: flex;
+  gap: 5px;
+  background: white;
+  border: 1px solid #ccc;
+  padding: 5px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 </style>
