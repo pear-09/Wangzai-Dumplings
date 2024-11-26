@@ -8,7 +8,10 @@ import json
 from user.utils import verify_and_refresh_token  # 自定义的 token 验证函数
 from rest_framework_simplejwt.tokens import AccessToken
 import logging
+from.forms import GenerateDatePlanForm
 logger = logging.getLogger(__name__)
+import re
+
 
 @csrf_exempt
 def create_view(request):
@@ -71,32 +74,48 @@ def create_view(request):
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
 
-# 获取所有日程
 @csrf_exempt
 def get_all_view(request):
     if request.method == 'GET':
-        schedules = Date.objects.all()  # 将GetAll修改为Date
-        schedule_list = []
+        try:
+            # 1. 验证并解析 token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)  # 解析 token
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
 
-        for schedule in schedules:
-            schedule_obj = {
-                "id": schedule.id,
-                "title": schedule.title,
-                "description": schedule.description,
-                "time": schedule.time,
-                # 如果Date模型没有status字段，这里可能需要根据实际情况处理
-                "status": getattr(schedule,'status', None),
-                "created_at": schedule.created_at.isoformat(),
-                "updated_at": schedule.updated_at.isoformat(),
-                "deleted_at": schedule.deleted_at.isoformat() if schedule.deleted_at else None
-            }
-            schedule_list.append(schedule_obj)
-        return JsonResponse({
-            "code": 0,
-            "msg": "success",
-            "data": schedule_list
-        })
-    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 2. 获取所有日程
+        try:
+            schedules = Date.objects.filter(user_id=user_id)  # 或者根据 user_id 过滤：Date.objects.filter(user_id=user_id)
+            schedule_list = []
+
+            for schedule in schedules:
+                schedule_obj = {
+                    "id": schedule.id,
+                    "title": schedule.title,
+                    "description": schedule.description,
+                    "time": schedule.time,
+                    # 如果 Date 模型没有 status 字段，这里可以根据实际情况处理
+                    "status": getattr(schedule, 'status', None),
+                    "created_at": schedule.created_at.isoformat(),
+                    "updated_at": schedule.updated_at.isoformat(),
+                    "deleted_at": schedule.deleted_at.isoformat() if schedule.deleted_at else None
+                }
+                schedule_list.append(schedule_obj)
+
+            # 3. 返回成功的响应
+            return JsonResponse({
+                "code": 0,
+                "msg": "success",
+                "data": schedule_list
+            })
+
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"获取日程失败: {str(e)}"})
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)
 
 
 
@@ -150,6 +169,15 @@ def get_view(request):
 @csrf_exempt
 def modify_schedule(request):
     if request.method == 'POST':
+        try:
+            # 验证并解析 Token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 获取 user_id
+
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
         data = json.loads(request.body)
         schedule_id = data.get('date_id')
         title = data.get('title')
@@ -157,15 +185,14 @@ def modify_schedule(request):
         time = data.get('time')
 
         try:
-            # 查找日程
-            schedule = Date.objects.get(id=schedule_id)
+            # 查找属于当前用户的日程
+            schedule = Date.objects.get(id=schedule_id, user_id=user_id)
 
             if title:
                 schedule.title = title
             if description:
                 schedule.description = description
             if time:
-                # 解析时间
                 schedule.time = datetime.datetime.fromisoformat(time)
 
             schedule.save()
@@ -182,15 +209,25 @@ def modify_schedule(request):
                 }
             })
         except Date.DoesNotExist:
-            return JsonResponse({"code": 1, "msg": "日程未找到"})
+            return JsonResponse({"code": 1, "msg": "日程未找到或无权限"})
         except ValueError:
             return JsonResponse({"code": 1, "msg": "时间格式错误"})
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
 
 # 修改日程状态
 @csrf_exempt
 def update_status(request):
     if request.method == 'POST':
+        try:
+            # 验证 Token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 获取 user_id
+
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
         data = json.loads(request.body)
         schedule_id = data.get('date_id')
         status = data.get('status')  # '完成' 或 '未完成'
@@ -199,7 +236,8 @@ def update_status(request):
             return JsonResponse({"code": 1, "msg": "状态值无效"})
 
         try:
-            schedule = Date.objects.get(id=schedule_id)
+            # 查找属于当前用户的日程
+            schedule = Date.objects.get(id=schedule_id, user_id=user_id)
             schedule.status = status
             schedule.save()
 
@@ -213,8 +251,9 @@ def update_status(request):
                 }
             })
         except Date.DoesNotExist:
-            return JsonResponse({"code": 1, "msg": "日程未找到"})
+            return JsonResponse({"code": 1, "msg": "日程未找到或无权限"})
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
 
 # 获取单个日程的详细信息
 @csrf_exempt
@@ -240,24 +279,86 @@ def get_single_event(request):
 def delete_schedule(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)  # 解析请求体为 JSON 数据
+            # 验证 Token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 获取 user_id
+
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        try:
+            data = json.loads(request.body)
             schedule_id = data.get('date_id')
 
             if not schedule_id:
                 return JsonResponse({"code": 1, "msg": "未提供日程ID"})
 
-            try:
-                schedule = Date.objects.get(id=schedule_id)
-                schedule.delete()  # 删除日程
+            # 查找属于当前用户的日程
+            schedule = Date.objects.get(id=schedule_id, user_id=user_id)
+            schedule.delete()  # 删除日程
 
-                return JsonResponse({
-                    "code": 0,
-                    "msg": "日程删除成功",
-                })
-            except Date.DoesNotExist:
-                return JsonResponse({"code": 1, "msg": "日程未找到"})
-
-        except json.JSONDecodeError:
-            return JsonResponse({"code": 1, "msg": "请求体解析失败，确保请求体是有效的 JSON"})
+            return JsonResponse({"code": 0, "msg": "日程删除成功"})
+        except Date.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "日程未找到或无权限"})
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"发生错误: {str(e)}"})
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+@csrf_exempt
+def generate_view(request):
+    if request.method == 'POST':
+        try:
+            # 1. 验证并刷新token
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token验证失败: {str(e)}"})
+
+        try:
+            request_body = request.body.decode('utf-8')
+            # 使用正则表达式去除不可见字符和多余空格
+            request_body = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]+', '', request_body)
+            request_body = request_body.strip()
+            form = GenerateDatePlanForm(json.loads(request_body))
+            if not form.is_valid():
+                return JsonResponse({"code": 1, "msg": f"参数验证失败: {form.errors}"})
+
+            startday_str = form.cleaned_data['startday']
+            # 将startday字符串转换为datetime类型
+            startday = datetime.datetime.strptime(startday_str, '%Y-%m-%d')
+            plan_data = form.cleaned_data['plan']
+
+            # 在这里进行日程生成并存储到数据库的操作
+            for plan in plan_data:
+                day_offset = plan['day']
+                content = plan['content']
+                # 正确计算日期
+                time = startday + datetime.timedelta(days=day_offset)
+                starttime = time
+                endtime = time
+                date_id = Date.get_next_id()
+                new_date = Date(
+                    id=date_id,
+                    user_id=user_id,
+                    title=content,
+                    description=content,
+                    time=time,
+                    starttime=starttime,
+                    endtime=endtime,
+                    status='未完成'
+                )
+                new_date.save()
+
+            return JsonResponse({
+                "code": 0,
+                "msg": "日程生成并存储成功"
+            })
+        except json.JSONDecodeError as e:
+            return JsonResponse({"code": 1, "msg": f"JSON解析错误: {str(e)}"}, status=400)
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"服务器错误: {str(e)}"}, status=500)
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"}, status=405)

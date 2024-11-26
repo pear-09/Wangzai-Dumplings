@@ -7,5 +7,9 @@ urlpatterns = [
     path('keywords', views.ai_extract_keywords, name='keywords'),
     path('translate', views.ai_translate, name = 'translate'),
     path('plan', views.ai_plan, name = 'plan'),
-    path('beauty', views.ai_beauty, name = 'beauty')
+    path('beauty', views.ai_beauty, name = 'beauty'),
+    path('generate', views.ai_generate, name = 'generate'),
+    path('continue', views.ai_continue, name = 'continue'),
+    path('inspiration', views.ai_inspiration, name = 'inspiration'),
+    path('analysis', views.ai_analysis, name = 'analysis'),
 ]
