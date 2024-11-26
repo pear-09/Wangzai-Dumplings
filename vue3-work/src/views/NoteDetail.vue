@@ -9,13 +9,21 @@ import type { Note, GetNoteDetailResponse } from '@/types/api/getNotelist';
 const route = useRoute();
 const router = useRouter();
 const noteId = route.params.id === 'new' ? 'new' : Number(route.params.id); // 确保类型正确
-// const noteId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
-const isNewNote = noteId === 'new'; 
+const isNewNote = noteId === 'new';
 const folderId = Number(route.params.folder_id); // 从路由参数获取 folderId
+
+// 检查传递的 title
+const noteTitle = ref<string>(
+  typeof route.params.title === 'string' ? route.params.title : '新建笔记0'
+); // 获取传递过来的文件名称，如果没有则使用默认名称
+
+// 调试：打印路由参数，检查是否正确传递了 title
+console.log('Route Params:', route.params);
+
 const note = ref<Note>({
   id: 0,
   user_id: 0,
-  title: '',
+  title: noteTitle.value,
   content: '',
   folder_id: folderId,
   tag: '',
@@ -24,15 +32,13 @@ const note = ref<Note>({
   deleted_at: null
 });
 
-// const isEditing = ref(false);
-
 // 初始化 Quill 编辑器
-const quillEditor = ref<any>(null); 
+const quillEditor = ref<any>(null);
 
 // 获取笔记详情
 const fetchNote = async (note_id: string) => {
   try {
-    const response = await request.get<GetNoteDetailResponse>(`/ez-note/note/query`, { params: { note_id } });
+    const response = await request.get<GetNoteDetailResponse>('/ez-note/note/query', { params: { note_id } });
     if (response.code === 0) {
       const fetchedNote = response.data;
       note.value = { ...fetchedNote };
@@ -49,13 +55,12 @@ const fetchNote = async (note_id: string) => {
   }
 };
 
-
 // 初始化新建笔记
 const initNewNote = () => {
   note.value = {
     id: 0,
     user_id: 0,
-    title: '',
+    title: noteTitle.value,
     content: '',
     folder_id: folderId,
     tag: '默认',
@@ -64,12 +69,6 @@ const initNewNote = () => {
     deleted_at: null
   };
 };
-
-// 启动编辑模式
-// const startEditing = () => {
-//   isEditing.value = true;
-//   console.log(folderId)
-// };
 
 // 保存笔记
 const saveNote = async () => {
@@ -81,7 +80,6 @@ const saveNote = async () => {
     formData.append('content', quillEditor.value.root.innerHTML);
     formData.append('folder_id', note.value.folder_id);
     formData.append('tag', note.value.tag);
-    console.log(isNewNote);
 
     // 设置请求的 URL
     const apiUrl = isNewNote ? '/ez-note/note/create' : '/ez-note/note/update/content';
@@ -92,7 +90,6 @@ const saveNote = async () => {
     // 根据响应处理
     if (response.code === 0) {
       alert(isNewNote ? '笔记创建成功' : '笔记更新成功');
-      // console.log(isNewNote);
       router.push({ name: 'bjwjj' }); // 跳转到笔记列表页面
     } else {
       alert(`保存失败：${response.msg}`);
@@ -103,18 +100,19 @@ const saveNote = async () => {
   }
 };
 
-
-
 // 取消编辑
 const cancelEdit = () => {
   if (isNewNote) {
     router.push({ name: 'bjwjj' });
   } else {
-    fetchNote(noteId);
+    fetchNote(String(noteId));
   }
 };
 
 onMounted(() => {
+  // 调试：检查 noteTitle 是否正确
+  console.log('笔记标题:', noteTitle.value);
+
   if (isNewNote) {
     initNewNote();
   } else if (noteId) {
@@ -141,58 +139,60 @@ onMounted(() => {
 
 <template>
   <div class="note-detail-container">
-    <h1 class="page-title">{{ isNewNote ? '新建笔记' : '编辑笔记' }}</h1>
-    
     <div class="note-form">
-      <label for="note-title">标题</label>
-      <input v-model="note.title" id="note-title" type="text" />
-
-      <label for="note-content">内容</label>
+      <h2>{{ note.title || '新建笔记1' }}</h2>
       <!-- 使用 Quill 编辑器的容器 -->
-      <div id="editor-container"> 
-        
-      </div>
+      <div id="editor-container"></div>
 
       <label for="note-tag">标签</label>
       <input v-model="note.tag" id="note-tag" type="text" />
 
       <div class="actions">
-        <button @click="saveNote" >保存</button>
+        <button @click="saveNote">保存</button>
         <button @click="cancelEdit">取消</button>
-        <!-- <button v-if="!isEditing" @click="startEditing">编辑</button> -->
       </div>
     </div>
   </div>
 </template>
 
+
+
 <style scoped>
 .note-detail-container {
   padding: 20px;
 }
+
 .page-title {
   font-size: 24px;
   margin-bottom: 20px;
 }
+
 .note-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+
 .note-form label {
   font-weight: bold;
 }
+
 .note-form input,
 .note-form textarea {
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
 #editor-container {
-  height: 400px; /* 设置编辑器的高度 */
+  height: 400px;
+  /* 设置编辑器的高度 */
 }
+
 .actions {
   margin-top: 20px;
 }
+
 .actions button {
   padding: 8px 16px;
   border: none;
