@@ -11,6 +11,7 @@
             <li><RouterLink to="/notefile" active-class="active">笔记</RouterLink></li>
             <li><RouterLink to="/schedule" active-class="active">日程</RouterLink></li>
             <li><RouterLink to="/write" active-class="active">写作</RouterLink></li>
+            <!-- <li><RouterLink to="/register" active-class="active">注冊</RouterLink></li> -->
             <li v-if="!isLoggedIn"><RouterLink to="/land" active-class="active">登录</RouterLink></li>
           </ul>
           <div class="tubiao" v-if="isLoggedIn">

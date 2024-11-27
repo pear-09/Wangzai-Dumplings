@@ -63,7 +63,11 @@ const handleLogin = async () => {
       isLoggedIn.value = true;
 
       alert('登录成功');
-      router.push('/home');  // 跳转到主页
+      
+      // 刷新页面并跳转到首页
+      window.location.reload();  // 刷新页面
+      router.push('/home');  // 跳转到首页
+      
     } else {
       errorMessage.value = response.data.msg || '登录失败，请稍后再试';
     }
@@ -119,6 +123,7 @@ const handleLogout = () => {
     </div>
   </div>
 </template>
+
 
 <style scoped>
 .home-container {
