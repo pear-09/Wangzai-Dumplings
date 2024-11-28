@@ -1,7 +1,14 @@
 <template>
   <div class="note-detail-container">
-    <!-- 返回按钮 -->
-    <button @click="goBack" class="back-button">返回</button>
+    <!-- 添加窄白条 -->
+    <div class="toolbar-bar">
+      <!-- 返回按钮 -->
+      <button @click="goBack" class="back-button">返回</button>
+      <button @click="saveNote" class="back-button">保存</button>
+
+      <!-- 编辑器工具栏 -->
+      <div id="editor-toolbar-container"></div>
+    </div>
 
     <!-- 文档标题 -->
     <h1 class="page-title"> 
@@ -12,39 +19,47 @@
     <div class="note-form">
       <div id="editor-container"></div>
     </div>
-
+    <!-- 底部的字数和缩放按钮 -->
+    <div class="footer-bar">
+      <div class="word-count">字数: {{ wordCount }}</div>
+      <div class="zoom-controls">
+        <button @click="zoomOut">-</button>
+        <span>{{ zoomPercentage }}%</span>
+        <button @click="zoomIn">+</button>
+      </div>
+    </div>
     <!-- 功能弹窗 -->
     <div v-if="showPopup" class="popup">
       <div class="popup-content">
         <h3>{{ popupTitle }}</h3>
         <form @submit.prevent="handleFormSubmit">
           <div v-if="popupType === '段落美化'">
-            <label for="text">Text</label>
+            <label for="text">美化段落：</label>
             <input type="text" v-model="formData.text" id="text" placeholder="请输入文本" />
-            <label for="length">Length</label>
+            <label for="length">AI返回长度：</label>
             <input type="number" v-model="formData.length" id="length" placeholder="请输入长度" />
           </div>
 
           <div v-if="popupType === '生成段落'">
-            <label for="prompt">Prompt</label>
+            <label for="prompt">提示词:</label>
             <input type="text" v-model="formData.prompt" id="prompt" placeholder="请输入提示" />
-            <label for="length">Length</label>
+            <label for="length">AI返回长度：</label>
             <input type="number" v-model="formData.length" id="length" placeholder="请输入段落长度" />
-            <label for="tone">Tone</label>
-            <select v-model="formData.tone" id="tone">
-              <option value="formal">neutral</option>
-              <option value="formal">formal</option>
-              <option value="informal">informal</option>
-              <option value="humorous">humorous</option>
-              <option value="motivational">motivational</option>
-              <option value="serious">serious</option>
-              <option value="friendly">friendly</option>
-              <option value="sarcastic">sarcastic</option>
-              <option value="pessimistic">pessimistic</option>
+            <label for="tone">AI语调：</label>
+            <select v-model="formData.tone" id="tone"class = 'featuresec'>
+              <option value="neutral">中性</option>
+              <option value="formal">正式</option>
+              <option value="informal">非正式</option>
+              <option value="humorous">幽默</option>
+              <option value="motivational">激励</option>
+              <option value="serious">严肃</option>
+              <option value="friendly">友好</option>
+              <option value="sarcastic">讽刺</option>
+              <option value="pessimistic">悲观</option>
 
             </select>
-            <label for="style">Style</label>
-            <select v-model="formData.style" id="style">
+            <label for="style">段落风格：</label>
+            <select v-model="formData.style" id="style"class = 'featuresec'>
               <option value="default">默认</option>
               <option value="academic">学术</option>
               <option value="creative">创意</option>
@@ -58,19 +73,19 @@
           </div>
 
           <div v-if="popupType === '续写内容'">
-            <label for="text">Text</label>
+            <label for="text">续写文本：</label>
             <input type="text" v-model="formData.text" id="text" placeholder="请输入文本" />
-            <label for="length">Length</label>
+            <label for="length">AI返回长度：</label>
             <input type="number" v-model="formData.length" id="length" placeholder="请输入续写长度" />
           </div>
 
           <div v-if="popupType === '写作提示'">
-            <label for="prompt">Prompt</label>
+            <label for="prompt">提示词：</label>
             <input type="text" v-model="formData.prompt" id="prompt" placeholder="请输入提示" />
-            <label for="length">Length</label>
+            <label for="length">AI返回长度：</label>
             <input type="number" v-model="formData.length" id="length" placeholder="请输入提示长度" />
-            <label for="content_type">Content Type</label>
-            <select v-model="formData.content_type" id="content_type">
+            <label for="content_type">写作提示类型：</label>
+            <select v-model="formData.content_type" id="content_type"class = 'featuresec'>
               <option value="inspiration">生成写作灵感</option>
               <option value="outline">生成写作大纲</option>
               <option value="title">生成吸引人的标题</option>
@@ -85,12 +100,12 @@
           </div>
 
           <div v-if="popupType === '文章分析'">
-            <label for="text">Text:默认上传所有内容</label>
+            <label for="text"></label>
             <!-- <input type="text" v-model="formData.text" id="text" placeholder="将默认上传本编辑的所有文本" /> -->
-            <label for="length">Length</label>
+            <label for="length">AI返回长度：</label>
             <input type="number" v-model="formData.length" id="length" placeholder="请输入分析长度" />
-            <label for="type">Type</label>
-            <select v-model="formData.type" id="type">
+            <label for="type">文章分析类型：</label>
+            <select v-model="formData.type" id="type" class = 'featuresec'>
               <option value="analysis">分析</option>
               <option value="evaluation">评价</option>
               <option value="correction">纠错</option>
@@ -98,8 +113,8 @@
 
           </div>
 
-          <button type="submit">提交</button>
-          <button @click="closePopup" type="button">关闭</button>
+          <button class="button1"type="submit">提交</button>
+          <button class="button1"@click="closePopup" type="button">关闭</button>
         </form>
       </div>
     </div>
@@ -107,8 +122,8 @@
   <div>
     <div v-if="showBeautifiedContent" class="popupbeauty">
       <textarea v-model="beautifiedText" class="editable-textarea"></textarea>
-      <button @click="replaceWithBeautifiedContent">插入美化内容</button>
-      <button @click="cancelBeautify">取消</button>
+      <button class="button2"@click="replaceWithBeautifiedContent">插入</button>
+      <button class="button2"@click="cancelBeautify">取消</button>
     </div>
   </div>
 
@@ -116,8 +131,8 @@
     <div class="popcontent-body">
       <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
       <div class="popcontent-buttons">
-        <button @click="handleInsert">插入</button>
-        <button @click="closePopContent">取消</button>
+        <button class="button2"@click="handleInsert">插入</button>
+        <button class="button2"@click="closePopContent">取消</button>
       </div>
     </div>
   </div>
@@ -130,8 +145,8 @@
   <div class="popcontent-body">
     <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
     <div class="popcontent-buttons">
-      <button @click="handleInsert">插入</button>
-      <button @click="closeParagraphPopup">取消</button>
+      <button class="button2" @click="handleInsert">插入</button>
+      <button class="button2" @click="closeParagraphPopup">取消</button>
     </div>
   </div>
 </div>
@@ -178,13 +193,44 @@ const formData = ref<{
   AI_model: 0  // 默认值为 0
 });
 
+const wordCount = ref(0);  // 存储文档字数
+const zoomPercentage = ref(100);  // 存储编辑器的放大缩小百分比
+const quillEditor = ref(null);
 
-
+const beautifiedText = ref<string>(''); // 用来存储后端返回的段落美化内容
+const showBeautifiedContent = ref(false);  // 控制是否显示美化后的内容
+const selectedRange = ref(null);
+const showSelectionButtons = ref(false);
+let lastAIModel = formData.value.AI_model;  // 初始化 lastAIModel 来保存上次的值
 
 // 定义响应式状态
 const showParagraphPopup = ref(false);  // 用来控制弹窗是否显示
 const popInputContent = ref('');  // 用于输入框的双向绑定
+const popupPosition = ref({ top: 100, left: 100 });  // 初始弹窗位置
+let isDragging = ref(false);
+let offsetX = ref(0);
+let offsetY = ref(0);
 
+const startDrag = (e: MouseEvent) => {
+  isDragging.value = true;
+  offsetX.value = e.clientX - popupPosition.value.left;
+  offsetY.value = e.clientY - popupPosition.value.top;
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+};
+
+const onDrag = (e: MouseEvent) => {
+  if (isDragging.value) {
+    popupPosition.value.left = e.clientX - offsetX.value;
+    popupPosition.value.top = e.clientY - offsetY.value;
+  }
+};
+
+const stopDrag = () => {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+};
 // 弹窗打开的函数
 const openParagraphPopup = () => {
   showParagraphPopup.value = true;
@@ -195,7 +241,7 @@ const closeParagraphPopup = () => {
   showParagraphPopup.value = false;
 };
 
-const quillEditor = ref(null);  // 这里 quillEditor 的类型是 `Ref<Quill | null>`
+
 // 插入弹窗编辑器的内容到 Quill 编辑器中
 const insertIntoQuill = () => {
   console.log('insertIntoQuill called'); // 检查函数是否被调用
@@ -220,62 +266,92 @@ const handleInsert = () => {
 
 
 onMounted(async () => {
-  quillEditor.value = new Quill('#editor-container', {
-    theme: 'snow',
-    placeholder: '编辑你的文档...',
-    modules: {
-      toolbar: [
-        ['bold', 'italic', 'underline', 'strike'],        // 加粗、斜体、下划线、删除线
-        [{ 'header': [1, 2, 3, false] }],                // 标题大小
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }],   // 列表
-        ['link', 'image'],                               // 链接和图片
-        [{ 'model': [] }, { '功能': [] }],               // 自定义工具
-      ],
-    },
-  });
+// 初始化 Quill 编辑器
+quillEditor.value = new Quill('#editor-container', {
+  theme: 'snow',
+  placeholder: '编辑你的文档...',
+  modules: {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'],        // 加粗、斜体、下划线、删除线
+      [{ 'header': [1, 2, 3, false] }],                // 标题大小
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],   // 列表
+      ['link', 'image'],                               // 链接和图片
+    ]
+  }
+});
 
-  const toolbar = quillEditor.value.getModule('toolbar');
+// 获取 Quill 工具栏容器
+const toolbarContainer = quillEditor.value.getModule('toolbar').container;
+// 将工具栏添加到页面的特定位置
+const toolbarTarget = document.getElementById('editor-toolbar-container');
+  if (toolbarTarget && toolbarContainer) {
+    toolbarTarget.appendChild(toolbarContainer);
+     // 再修改样式
+     toolbarContainer.style.align = 'center';  // 居中
+  }
 
-  // 添加 "model" 工具
-  const modelButton = document.createElement('span');
-  modelButton.classList.add('ql-model');
-  modelButton.innerHTML = '📦';
-  modelButton.title = '选择模型';
-  const modelDropdown = document.createElement('select');
-  ['无','openAI', 'Kimi'].forEach(option => {
-    const item = document.createElement('option');
-    item.value = option;
-    item.innerText = option;
-    modelDropdown.appendChild(item);
-  });
-  toolbar.container.appendChild(modelButton);
-  toolbar.container.appendChild(modelDropdown);
+// 添加 "model" 工具
+const modelButton = document.createElement('span');
+modelButton.classList.add('ql-model');
+modelButton.innerHTML = '📦';
+modelButton.title = '选择模型';
+const modelDropdown = document.createElement('select');
+['openAI', 'Kimi'].forEach(option => {
+  const item = document.createElement('option');
+  item.value = option;
+  item.innerText = option;
+  modelDropdown.appendChild(item);
+});
 
-  // 添加 "功能" 工具
-  const featureButton = document.createElement('span');
-  featureButton.classList.add('ql-功能');
-  featureButton.innerHTML = '🔧';
-  featureButton.title = '功能';
-  const featureDropdown = document.createElement('select');
-  [
-    '无',
-    '段落美化',
-    '生成段落',
-    '续写内容',
-    '写作提示',
-    '文章分析',
-  ].forEach(option => {
-    const item = document.createElement('option');
-    item.value = option;
-    item.innerText = option;
-    featureDropdown.appendChild(item);
-  });
-  toolbar.container.appendChild(featureButton);
-  toolbar.container.appendChild(featureDropdown);
+// 将模型按钮和下拉框添加到工具栏
+toolbarContainer.appendChild(modelButton);
+toolbarContainer.appendChild(modelDropdown);
+
+// 添加每个功能按钮单独存在于工具栏
+const addFeatureButton = (icon, title, handler) => {
+  const button = document.createElement('span');
+  button.classList.add('ql-feature');
+  button.innerHTML = icon;
+  button.title = title;
+  button.style.cursor = 'pointer';  // 设置光标为小手型
+  button.addEventListener('click', handler);
+  toolbarContainer.appendChild(button);  // 将按钮单独添加到工具栏容器
+};
+
+// 功能按钮的点击事件处理
+const handleFeatureChange = (selectedFeature) => {
+  console.log('Selected feature:', selectedFeature);
+  
+  switch (selectedFeature) {
+    case '段落美化':
+      showPopupDetails('段落美化', '段落美化');
+      break;
+    case '生成段落':
+      showPopupDetails('生成段落', '生成段落');
+      break;
+    case '续写内容':
+      showPopupDetails('续写内容', '续写内容');
+      break;
+    case '写作提示':
+      showPopupDetails('写作提示', '写作提示');
+      break;
+    case '文章分析':
+      showPopupDetails('文章分析', '文章分析');
+      break;
+    default:
+      console.log('功能未定义');
+  }
+};
+
+// 添加功能按钮到工具栏
+addFeatureButton('✨', '段落美化', () => handleFeatureChange('段落美化'));
+addFeatureButton('💬', '生成段落', () => handleFeatureChange('生成段落'));
+addFeatureButton('✏️', '续写内容', () => handleFeatureChange('续写内容'));
+addFeatureButton('💡', '写作提示', () => handleFeatureChange('写作提示'));
+addFeatureButton('🔍', '文章分析', () => handleFeatureChange('文章分析'));
 
   // 添加功能逻辑（根据需要处理选择事件）
   modelDropdown.addEventListener('change', handleModelChange);
-  featureDropdown.addEventListener('change', handleFeatureChange);
 
   if (!isNew && docId) {
     await fetchDocumentContent();
@@ -292,15 +368,55 @@ onMounted(async () => {
       hideTextSelectionOptions();
     }
   });
-
+  quillEditor.value.on('text-change', updateWordCount); // 每次编辑器内容发生变化时，更新字数
+  updateWordCount(); // 初始化字数
+  
 
 });
 
-const beautifiedText = ref<string>(''); // 用来存储后端返回的段落美化内容
-const showBeautifiedContent = ref(false);  // 控制是否显示美化后的内容
-const selectedRange = ref(null);
-const showSelectionButtons = ref(false);
-let lastAIModel = formData.value.AI_model;  // 初始化 lastAIModel 来保存上次的值
+
+// 工具栏按钮功能（增加和减少缩放）
+// 放大缩小操作，增减 zoomPercentage
+const zoomIn = () => {
+  if (zoomPercentage.value < 200) {
+    zoomPercentage.value += 10;  // 增加放大值
+    updateEditorZoom();  // 更新缩放
+  }
+};
+
+const zoomOut = () => {
+  if (zoomPercentage.value > 50) {
+    zoomPercentage.value -= 10;  // 减小缩放值
+    updateEditorZoom();  // 更新缩放
+  }
+};
+
+
+// 更新编辑器的缩放
+const updateEditorZoom = () => {
+  if (quillEditor.value) {
+    // // 计算缩放比例
+    const zoom = zoomPercentage.value / 100;
+    // // 缩放 Quill 编辑器的根元素
+    // quillEditor.value.root.style.transform = `scale(${zoom})`;
+    // quillEditor.value.root.style.transformOrigin = 'top center';
+
+    // 获取 editor-container 并应用缩放
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer) {
+      editorContainer.style.transform = `scale(${zoom})`;
+      editorContainer.style.transformOrigin = 'top center';
+    }
+  }
+  
+};
+
+// 获取字数
+const updateWordCount = () => {
+  if (quillEditor.value) {
+    wordCount.value = quillEditor.value.getLength() - 1; // 减去1是因为 Quill 默认在末尾有一个换行符
+  }
+};
 
 
 const showTextSelectionOptions = (range) => {
@@ -339,9 +455,6 @@ const handleModelChange = (event) => {
     case 'Kimi':
       formData.value.AI_model = 1;  // 选择 Kimi 时设置为 1
       break;
-    case '无':
-      formData.value.AI_model = -1;  // 选择 "无" 时不发起 AI 请求
-      break;
     default:
       formData.value.AI_model = -1;  // 默认不发起 AI 请求
       break;
@@ -351,29 +464,7 @@ const handleModelChange = (event) => {
 };
 
 
-const handleFeatureChange = (event) => {
-  const selectedFeature = event.target.value;
-  console.log('Selected feature:', selectedFeature);
-  switch (selectedFeature) {
-    case '段落美化':
-      showPopupDetails('段落美化', '段落美化');
-      break;
-    case '生成段落':
-      showPopupDetails('生成段落', '生成段落');
-      break;
-    case '续写内容':
-      showPopupDetails('续写内容', '续写内容');
-      break;
-    case '写作提示':
-      showPopupDetails('写作提示', '写作提示');
-      break;
-    case '文章分析':
-      showPopupDetails('文章分析', '文章分析');
-      break;
-    default:
-      console.log('功能未定义');
-  }
-};
+
 
 const showPopupDetails = (title, type) => {
   popupTitle.value = title;
@@ -653,78 +744,419 @@ const goBack = () => {
 </script>
 
 <style scoped>
-.popup {
-  position: absolute;  /* 使弹窗可以自由移动 */
-  top: 50px;  /* 设置初始位置 */
-  left: 100px;
-  width: 300px;  /* 设置宽度 */
-  padding: 20px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+/* 按钮间距：除了最后一个按钮，其他按钮右侧有50px间距 */
+.button2:not(:last-child) {
+  margin-top: 20px;
+  margin-right: 50px; /* 按钮间距调整 */
 }
 
-.popup-content {
-  padding: 10px;
+/* 按钮的公共样式 */
+.button2 {
+  display: inline-block;
+  padding: 12px 24px; /* 上下12px，左右24px */
+  background-color: #d9534f; /* 红色背景 */
+  color: #fff; /* 文字颜色 */
+  border: none; /* 去掉默认边框 */
+  border-radius: 10px; /* 圆角边框 */
+  font-size: 16px; /* 文字大小 */
+  font-weight: 600; /* 字体加粗 */
+  cursor: pointer; /* 鼠标悬浮时显示为手形 */
+  text-align: center; /* 文字居中 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 柔和阴影 */
 }
 
-.popup-header {
-  cursor: grab; /* 设置鼠标在标题栏时为抓取状态 */
+/* 鼠标悬停时的效果 */
+.button2:hover {
+  background-color: #c9302c; /* 鼠标悬浮时稍微暗一点的红色 */
+  transform: scale(1.05); /* 轻微放大 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* 增加阴影深度 */
 }
 
-
-.popcontent-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* 鼠标按下时的效果 */
+.button2:active {
+  background-color: #ac2925; /* 鼠标按下时的红色 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); /* 阴影缩小 */
+  transform: scale(1); /* 还原按钮大小 */
 }
+
+/* 按钮失去焦点时 */
+.button2:focus {
+  outline: none; /* 移除默认焦点边框 */
+  box-shadow: 0 0 4px 2px rgba(219, 50, 50, 0.7); /* 添加聚焦时的阴影 */
+}
+
+/* 按钮的公共样式 */
+.button1:not(:last-child) {
+  margin-top: 20px;
+  margin-right: 50px; /* 除了最后一个按钮，其他按钮右侧有20px间距 */
+}
+.button1 {
+  display: inline-block;
+  padding: 12px 24px; /* 上下12px，左右24px */
+  background-color: #2d6a4f; /* 深绿色背景 */
+  color: #fff; /* 文字颜色 */
+  border: none; /* 去掉默认边框 */
+  border-radius: 10px; /* 圆角边框 */
+  font-size: 16px; /* 文字大小 */
+  font-weight: 600; /* 字体加粗 */
+  cursor: pointer; /* 鼠标悬浮时显示为手形 */
+  text-align: center; /* 文字居中 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 柔和阴影 */
+}
+
+/* 鼠标悬停时的效果 */
+.button1:hover {
+  background-color: #1a4f34; /* 鼠标悬浮时稍微暗一点的绿色 */
+  transform: scale(1.05); /* 轻微放大 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* 增加阴影深度 */
+}
+
+/* 鼠标按下时 */
+.button1:active {
+  background-color: #164f2b; /* 鼠标按下时的绿色 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); /* 阴影缩小 */
+  transform: scale(1); /* 还原按钮大小 */
+}
+
+/* 按钮失去焦点时 */
+.button1:focus {
+  outline: none; /* 移除默认焦点边框 */
+  box-shadow: 0 0 4px 2px rgba(45, 106, 79, 0.7); /* 添加聚焦时的阴影 */
+}
+
 
 .popcontent-textarea {
-  width: 100%;
-  height: 100px;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
+  width: 100%; /* 使文本框宽度充满父容器 */
+  height: 150px; /* 适当的高度，可以根据需要调整 */
+  padding: 12px 16px; /* 内边距，使得文本内容不紧贴边框 */
+  background: rgba(255, 255, 255, 0.6); /* 半透明白色背景 */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.2)); /* 细腻的渐变背景 */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* 微弱的边框 */
+  border-radius: 10px; /* 圆角边框 */
+  color: #2e3d34; /* 深灰色文字 */
+  font-size: 16px; /* 文字大小 */
+  line-height: 1.5; /* 行高，增加文本的可读性 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 轻微阴影效果 */
+  resize: vertical; /* 允许垂直拖动调整大小 */
+  backdrop-filter: blur(8px); /* 背景磨砂玻璃效果 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  box-sizing: border-box; /* 包括内边距和边框 */
 }
 
-.popcontent-buttons {
-  display: flex;
-  justify-content: space-between;
+.popcontent-textarea:focus {
+  outline: none; /* 移除默认的聚焦边框 */
+  border-color: #45a049; /* 聚焦时的绿色边框 */
+  box-shadow: 0 0 6px rgba(69, 160, 73, 0.8); /* 聚焦时的绿色光晕 */
+  background: rgba(255, 255, 255, 0.8); /* 聚焦时的白色背景 */
 }
 
-.popcontent-buttons button {
-  padding: 8px 16px;
-  font-size: 14px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.popcontent-textarea::placeholder {
+  color: rgba(0, 0, 0, 0.5); /* 占位符文字颜色 */
+  font-style: italic; /* 占位符文字斜体 */
 }
 
-.popcontent-buttons button:first-child {
-  background-color: #4caf50;
-  color: white;
+.popcontent {
+  position: absolute; /* 可改为 fixed 保持位置固定 */
+  padding: 20px; /* 内边距，给内容留出空间 */
+  background: rgba(255, 255, 255, 0.4); /* 半透明白色背景 */
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.6), rgba(173, 216, 230, 0.6)); /* 渐变粉蓝色背景 */
+  color: #2e3d34; /* 文字颜色设置为深灰色 */
+  border-radius: 15px; /* 圆角边框 */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* 轻微的白色边框 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* 细腻的阴影效果 */
+  backdrop-filter: blur(10px); /* 背景模糊效果 */
+  font-size: 18px; /* 字体大小 */
+  font-weight: 500; /* 适中的字体粗细 */
+  line-height: 1.6; /* 行高增加文本可读性 */
+  box-sizing: border-box; /* 包括内边距和边框的总宽度 */
+  left: 50%; /* 水平居中 */
+  top: 100px; /* 根据需要调整垂直位置 */
+  transform: translateX(-50%); /* 水平居中 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
 }
 
-.popcontent-buttons button:last-child {
-  background-color: #f44336;
-  color: white;
+
+.popcontent:hover {
+  transform: translateX(-50%) scale(1.00); /* 鼠标悬浮时轻微放大 */
+}
+
+.popcontent:focus {
+  outline: none; /* 移除默认的聚焦轮廓 */
+  box-shadow: 0 0 8px rgba(69, 160, 73, 0.8); /* 聚焦时绿色光晕效果 */
+}
+
+.popcontent .header {
+  font-size: 22px; /* 标题字体稍大 */
+  font-weight: bold; /* 标题加粗 */
+  margin-bottom: 15px; /* 标题下方的间距 */
+}
+
+.popcontent .body {
+  font-size: 16px; /* 正文内容字体 */
+  line-height: 1.5; /* 行高 */
+  color: rgba(0, 0, 0, 0.7); /* 正文文字稍微淡化 */
+}
+
+.popcontent .footer {
+  margin-top: 20px; /* 底部区域距离内容的间距 */
+  text-align: center; /* 底部区域居中 */
 }
 
 .popupbeauty {
-  position: fixed;
+  position: absolute;  /* 可改为 fixed 保持位置固定 */
+  background: linear-gradient(145deg, rgba(152, 255, 152, 0.3), rgba(255, 210, 225, 0.3),rgba(255,255,255,0.3)); /* 淡浅绿色、淡粉色、淡紫色渐变 */
+  color: #2e3d34; /* 文字颜色 */
+  border-radius: 15px; /* 圆角边框 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* 轻微阴影效果 */
+  padding: 20px; /* 内边距 */
+  box-sizing: border-box; /* 包括内边距和边框 */
+  left: 50%; /* 居中对齐 */
+  top: 500px; /* 可以根据需要调整 */
+  transform: translateX(-50%); /* 水平居中 */
+  display: block;
+  flex-direction: column; /* 垂直排列 */
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out; /* 平滑过渡 */
+  backdrop-filter: blur(10px); /* 背景磨砂玻璃效果 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 添加微弱的边框 */
+}
+.editable-textarea {
+  display: block; /* 确保文本框占一整行 */
+  background: rgba(255, 255, 255, 0.9); /* 半透明白色背景 */
+  border-radius: 10px; /* 圆角边框 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 轻微的边框 */
+  padding: 15px; /* 内边距，给内容一些空间 */
+  width: 100%; /* 宽度为父容器的100% */
+  min-height: 120px; /* 最小高度 */
+  font-size: 16px; /* 字体大小 */
+  color: #333; /* 文字颜色 */
+  line-height: 1.5; /* 行高，增加文本间距 */
+  font-family: 'Arial', sans-serif; /* 字体样式 */
+  box-sizing: border-box; /* 包括边框和内边距的总宽度 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  backdrop-filter: blur(10px); /* 背景磨砂玻璃效果 */
+  overflow: auto; /* 内容溢出时显示滚动条 */
+}
+
+.editable-textarea:focus {
+  outline: none; /* 移除默认的聚焦轮廓 */
+  border-color: rgba(69, 160, 73, 0.8); /* 聚焦时的边框颜色（绿色） */
+  box-shadow: 0 0 4px rgba(69, 160, 73, 0.6); /* 聚焦时的光晕效果 */
+  background: rgba(255, 255, 255, 0.6); /* 聚焦时背景稍微变亮 */
+}
+
+.editable-textarea::placeholder {
+  color: rgba(0, 0, 0, 0.5); /* 提示文字的颜色，淡灰色 */
+  font-style: italic; /* 提示文字为斜体 */
+}
+
+
+.featuresec {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 8px 12px; /* 内边距调整 */
+  margin-bottom: 10px; /* 下方间距 */
+  background: rgba(255, 255, 255, 0.6); /* 半透明背景 */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* 半透明边框 */
+  border-radius: 6px; /* 圆角边框 */
+  font-size: 14px; /* 字体大小 */
+  color: #333; /* 输入框文字颜色 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  backdrop-filter: blur(5px); /* 背景模糊效果 */
+  appearance: none; /* 去除浏览器默认的下拉箭头 */
+  -webkit-appearance: none; /* 适配Safari */
+  -moz-appearance: none; /* 适配Firefox */
+}
+
+.featuresec :focus {
+  outline: none; /* 移除焦点时的边框 */
+  border-color: #45a049; /* 聚焦时的边框颜色 */
+  box-shadow: 0 0 4px rgba(69, 160, 73, 0.8); /* 聚焦时的绿色光晕 */
+  background: rgba(255, 255, 255, 0.8); /* 聚焦时的背景色 */
+}
+
+.featuresec::before {
+  content: " "; /* 添加伪元素，模拟自定义下拉箭头 */
+  position: absolute;
+  right: 12px; /* 右侧距离 */
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 50%; /* 设置宽度为50% */
-  background: white;
-  border: 1px solid #ccc;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  max-width: 800px; /* 最大宽度限制 */
-  cursor: move; /* 鼠标悬停时显示拖动光标 */
+  transform: translateY(-50%);
+  width: 0; 
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #45a049; /* 下拉箭头的颜色 */
+}
+
+
+.featuresec select {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.featuresec select option:checked {
+  background-color: rgba(69, 160, 73, 0.6) !important; /* 强制应用深绿色背景 */
+  color: white !important; /* 强制应用白色文字 */
+}
+
+
+label, input {
+  display: block;
+  margin-bottom: 10px; /* 给元素之间适度的间距 */
+  font-size: 14px; /* 更小的字体大小 */
+  color: #4a4a4a; /* 深绿色字体 */
+}
+
+label {
+  margin-bottom: 5px; /* 标签和输入框之间的间距 */
+  font-weight: bold;  /* 标签文字加粗 */
+}
+
+input {
+  width: 100%;  /* 输入框宽度占满父元素 */
+  padding: 8px;  /* 更小的内边距 */
+  background: rgba(255, 255, 255, 0.6);  /* 半透明背景 */
+  border: 2px solid rgba(255, 255, 255, 0.3);  /* 半透明边框 */
+  border-radius: 6px;  /* 圆角边框 */
+  font-size: 14px;  /* 更小的字体 */
+  color: #333;  /* 输入框文字颜色 */
+  transition: all 0.3s ease-in-out;  /* 平滑过渡效果 */
+  backdrop-filter: blur(5px);  /* 背景模糊效果 */
+}
+
+input:focus {
+  outline: none;  /* 移除焦点时的边框 */
+  border-color: #333;  /* 聚焦时的边框颜色 */
+  box-shadow: 0 0 4px rgba(#333 0.8); /* 聚焦时的绿色光晕 */
+  background: rgba(255, 255, 255, 0.8); /* 聚焦时的背景色 */
+}
+
+
+/* popup 样式 */
+.popup {
+  position: absolute;  /* 可改为 fixed 保持位置固定 */
+  width: 300px;  /* 增大宽度 */
+  background-color: rgba(117, 154, 139, 0.5); /* 浅绿色并加上透明度以实现磨砂效果 */
+  color: #2e3d34; /* 文字颜色设置为白色 */
+  border-radius: 15px; /* 圆角边框 */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* 轻微阴影效果 */
+  padding: 20px; /* 增加内边距 */
+  box-sizing: border-box; /* 包括内边距和边框 */
+  left: 50%; /* 居中对齐 */
+  top: 500px; /* 可以根据需要调整 */
+  transform: translateX(-50%); /* 水平居中 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 600;
+  transition: all 0.3s ease-in-out; /* 平滑过渡 */
+  backdrop-filter: blur(10px); /* 背景磨砂玻璃效果 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* 添加微弱的边框 */
+}
+
+/* popup-content 样式 */
+.popup-content {
+  width: 100%;  /* 使内容宽度填充整个弹窗 */
+  height: 100%;  /* 内容占满整个弹窗高度 */
+  padding: 20px;  /* 内部间距 */
+}
+
+/* 可选的动画效果 */
+.popup:hover {
+  transform: translateX(-50%) scale(1.00); /* 鼠标悬浮时轻微放大 */
+  backdrop-filter: blur(7px); /* 背景磨砂玻璃效果 */
+}
+
+
+.toolbar-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* 或者 justify-content: center; */
+  background-color: white;
+  padding: 10px 0px;
+  height: 40px;
+  border-bottom: 1px solid #ddd;
+}
+.toolbar-bar > .back-button{
+  margin-right: 80px;
+}
+.back-button:first-child {
+  margin-right: 30px; /* 最后一个按钮右侧不需要间距 */
+}
+
+.toolbar-bar > .ql-toolbar {
+  margin: 0 auto; /* 使 center 元素居中 */
+}
+
+#editor-container {
+  width: 60%;
+  margin: 0 auto;
+  height: 800px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  transform: scale(1.1); /* 用来放大 */
+  transition: transform 0.3s ease; /* 动画效果，平滑缩放 */
+  transform-origin: top center; /* 设置缩放原点 */
+}
+
+.footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  padding: 10px 20px;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.word-count {
+  font-size: 14px;
+  color: #555;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+}
+
+/* 红色按钮样式 */
+.zoom-controls button {
+  font-size: 16px;
+  padding: 8px;
+  background-color: #e74c3c; /* 红色背景 */
+  color: #fff; /* 文字颜色为白色 */
+  border: none; /* 去掉边框 */
+  border-radius: 10px; /* 圆角边框 */
+  cursor: pointer; /* 鼠标悬浮时为手型 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡 */
+}
+
+.zoom-controls button:hover {
+  background-color: #c0392b; /* 鼠标悬浮时稍微暗一点的红色 */
+  transform: scale(1.05); /* 鼠标悬浮时按钮轻微放大 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 增加阴影效果 */
+}
+
+.zoom-controls button:active {
+  background-color: #e74c3c; /* 鼠标按下时背景色恢复为原红色 */
+  transform: scale(1); /* 鼠标按下时还原按钮大小 */
+}
+
+
+.zoom-controls span {
+  font-size: 16px;
+  margin: 0 10px;
 }
 
 .editable-textarea {
@@ -753,84 +1185,19 @@ const goBack = () => {
   padding: 5px 10px;
 }
 
-/* 弹窗内容 */
-.popup-content {
-  margin-bottom: 20px;
-}
-.popup {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-  width: 200px;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-  padding: 20px;
-  z-index: 9999;
-  display: block;  /* 弹窗显示时为 block */
+/* Quill 工具栏样式调整 */
+.ql-toolbar {
+  margin: 0 auto;
+  width: 70%;
+  cursor: pointer !important;
+  border-radius: 4px 4px 0 0;
+  border: 1px solid #ddd;
+  background-color: #f9f9f9;
 }
 
-/* 弹窗头部样式 */
-.popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.analysis-settings {
-  margin-top: 20px;
-}
-.prompt-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  border: 1px solid #ccc;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-}
-
-.modal-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.modal {
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 600px; /* 设置弹窗宽度 */
-  max-height: 90vh; /* 限制高度 */
-  overflow-y: auto; /* 超出滚动 */
-}
-
-.large-textarea {
-  width: 500px;
-  height: 300px; /* 输入框高度 */
-  margin-bottom: 20px;
-  padding: 10px;
-  font-size: 16px; /* 增大字体 */
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.ql-model, .ql-功能 {
-  padding: 5px;
-  margin-right: 10px;
-  cursor: pointer;
-  font-size: 18px;
-}
-.ql-toolbar select {
-  margin-right: 10px;
-  padding: 5px;
-}
-
+/* Quill 编辑器容器 */
 .note-detail-container {
-  padding: 20px;
+  padding: 0px 10px;
 }
 
 .page-title {
@@ -842,7 +1209,8 @@ const goBack = () => {
 }
 
 .title-input {
-  font-size: 24px;
+  font-size: 28px;
+  color: black;
   border: none;
   border-bottom: 1px solid #ddd;
   outline: none;
@@ -854,28 +1222,8 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-#editor-container {
-  width: 60%;
-  margin: 0 auto;
-  height: 800px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: #fff;
-}
-
-/* Quill 工具栏样式调整 */
-.ql-toolbar {
-  margin: 0 auto;
-  width: 70%;
-  border-radius: 4px 4px 0 0;
-  border: 1px solid #ddd;
-  background-color: #f9f9f9;
-}
-
-.ql-container {
-  height: calc(100% - 42px); /* 调整容器高度，避开工具栏 */
+  margin-top: 0px;
+  padding: 0;
 }
 
 .actions {
@@ -897,19 +1245,21 @@ const goBack = () => {
 
 /* 返回按钮样式 */
 .back-button {
-  position: absolute;
-  top: 120px;
-  left: 20px;
-  padding: 8px 16px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 5px 15px;
+  font-size: 16px;
+  background-color: #2d6a4f; /* 深绿色背景 */
+  border: 1px solid #2d6a4f; /* 与背景色一致的边框 */
+  border-radius: 20%; /* 圆形边框 */
+  color: #fff; /* 文字颜色为白色 */
+  cursor: pointer; /* 鼠标悬浮时为手型 */
+  transition: all 0.3s ease-in-out; /* 平滑过渡 */
 }
 
 .back-button:hover {
-  background-color: #45a049;
+  background-color: #1a4f34; /* 鼠标悬浮时稍微暗一点的绿色 */
+  transform: scale(1.05); /* 鼠标悬浮时按钮轻微放大 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 增加阴影效果 */
 }
 
 </style>
+
