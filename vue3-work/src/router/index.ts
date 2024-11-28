@@ -37,7 +37,7 @@ const router = createRouter({
       component: Write
     },
     {
-      path: '/write-edit/:id',
+      path: '/write-edit:id?',
       name: 'writeEdit',
       component: WriteEdit,
       props: true, // 传递路由参数作为 prop 给组件

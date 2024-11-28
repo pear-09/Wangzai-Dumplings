@@ -67,7 +67,6 @@ const handleLogin = async () => {
       // 刷新页面并跳转到首页
       window.location.reload();  // 刷新页面
       router.push('/home');  // 跳转到首页
-      
     } else {
       errorMessage.value = response.data.msg || '登录失败，请稍后再试';
     }
@@ -84,43 +83,61 @@ const handleLogout = () => {
   loggedInUsername.value = '';
   isLoggedIn.value = false;
 };
+
+// 跳转到注册页面
+const goToRegister = () => {
+  router.push('/register');
+};
 </script>
 
 <template>
   <div class="home-container">
-    <div v-if="isLoggedIn" class="welcome-message">
-      <h2>欢迎回来，{{ loggedInUsername }}！</h2>
-      <p>您已成功登录。</p>
-      <button @click="handleLogout">登出</button>
+    <div class="illustration">
+      <img src="../assets/undraw_open_note_cgre.svg" alt="illustration" />
     </div>
-    <div v-else class="login-message">
-      <h2>您尚未登录</h2>
-      <p>请先登录以访问完整功能。</p>
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">用户名:</label>
-          <input
-            v-model="username"
-            type="text"
-            id="username"
-            placeholder="请输入用户名"
-            required
-          />
+    <div class="content">
+      <div v-if="isLoggedIn" class="welcome-message">
+        <h2>欢迎回来，{{ loggedInUsername }}！</h2>
+        <p>您已成功登录。</p>
+        <button @click="handleLogout">登出</button>
+      </div>
+      <div v-else class="login-message">
+        <h2>您尚未登录</h2>
+        <p>请先登录以访问完整功能。</p>
+        <form @submit.prevent="handleLogin">
+          <div class="form-group">
+            <label for="username">用户名:</label>
+            <input
+              v-model="username"
+              type="text"
+              id="username"
+              placeholder="请输入用户名"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="password">密码:</label>
+            <input
+              v-model="password"
+              type="password"
+              id="password"
+              placeholder="请输入密码"
+              required
+            />
+          </div>
+          <button type="submit">登录</button>
+          <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+        </form>
+
+        <!-- 注册链接 -->
+        <div class="register-link">
+          <p>没有账号？ <a href="#" @click.prevent="goToRegister">去注册</a></p>
         </div>
-        <div class="form-group">
-          <label for="password">密码:</label>
-          <input
-            v-model="password"
-            type="password"
-            id="password"
-            placeholder="请输入密码"
-            required
-          />
-        </div>
-        <button type="submit">登录</button>
-        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-      </form>
+      </div>
     </div>
+    <!-- 装饰图案 -->
+    <img class="leaf1" src="../assets/green.svg" alt="leaf decoration" />
+    <img class="leaf2" src="../assets/green.svg" alt="leaf decoration" />
   </div>
 </template>
 
@@ -132,31 +149,48 @@ const handleLogout = () => {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #f0f2f5, #d1e0e0);
+  background: linear-gradient(135deg, #f0f2f5, #d1e0e0), url('../assets/background.svg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.illustration {
+  position: absolute;
+  left: 8%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.illustration img {
+  width: 600px; /* 控制插画大小 */
+  height: auto;
+}
+
+.content {
+  margin-left: 488px; /* 右移登录框，使其不覆盖插画 */
+  width: 100%;
+  max-width: 400px;
+}
+
+.welcome-message, .login-message {
+  background-color: rgba(255, 255, 255, 0.8); /* 半透明背景 */
+  color: #333;
+  padding: 30px 50px;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  text-align: center;
+  margin: 20px;
+  position: relative;
 }
 
 .welcome-message {
   background-color: #4CAF50;
-  color: #0a0a0a;
-  padding: 30px 50px;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-  text-align: center;
-  margin: 20px;
 }
 
 .login-message {
-  /* background-color: #FF9800; */
-  color: rgb(17, 16, 16);
-  padding: 30px 50px;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-  text-align: center;
-  margin: 20px;
+  background-color: #ffffff;
 }
 
 h2 {
@@ -200,6 +234,7 @@ button:active {
 
 .form-group {
   margin-bottom: 25px;
+  text-align: left;
 }
 
 label {
@@ -207,7 +242,6 @@ label {
   font-size: 16px;
   color: #333;
   margin-bottom: 8px;
-  transform: translateX(-180px);
 }
 
 input {
@@ -229,9 +263,92 @@ input::placeholder {
   color: #aaa;
 }
 
+.register-link {
+  margin-top: 20px;
+}
+
+.register-link a {
+  color: #4CAF50;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
+}
+
+/* 装饰图案 */
+.leaf1, .leaf2 {
+  position: absolute;
+  top: 30px;
+  z-index: 1;
+  opacity: 0.6;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.leaf1 {
+  left: 10%;
+  width: 180px;
+  height: 180px;
+  animation: floatLeaf1 6s infinite;
+}
+
+.leaf2 {
+  right: 10%;
+  width: 200px;
+  height: 200px;
+  animation: floatLeaf2 8s infinite;
+}
+
+/* 动画效果 */
+@keyframes floatLeaf1 {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) rotate(15deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(20px) rotate(-15deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes floatLeaf2 {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-30px) rotate(-10deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(30px) rotate(10deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
 @media (max-width: 768px) {
   .home-container {
     padding: 15px;
+  }
+
+  .illustration {
+    display: none; /* 移动端不显示插画 */
+  }
+
+  .content {
+    margin-left: 0;
   }
 
   .welcome-message,
@@ -250,6 +367,11 @@ input::placeholder {
 
   input {
     padding: 10px;
+  }
+
+  .leaf1, .leaf2 {
+    width: 150px;
+    height: 150px;
   }
 }
 </style>
