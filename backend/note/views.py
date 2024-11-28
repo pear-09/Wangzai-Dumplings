@@ -259,7 +259,7 @@ def delete_note_view(request):
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
-@csrf_exempt
+@csrf_exempt 
 def update_note_tag_view(request):
     if request.method == 'POST':  # 使用 POST 方法
         # 验证并刷新 token
@@ -272,10 +272,10 @@ def update_note_tag_view(request):
 
         # 获取前端提交的数据
         note_id = request.POST.get('note_id')  # 获取笔记 ID
-        tag_name = request.POST.get('tag')  # 获取标签名称
+        tag_names = request.POST.getlist('tag')  # 获取标签名称列表（多个标签）
 
         # 验证必要参数
-        if not note_id or not tag_name:
+        if not note_id or not tag_names:
             return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id 和 tag"})
 
         # 查询指定的笔记
@@ -284,13 +284,13 @@ def update_note_tag_view(request):
         except Note.DoesNotExist:
             return JsonResponse({"code": 1, "msg": "笔记不存在或无权限修改"})
 
+        # 清空现有标签
         note.tags.clear()
-        
-        # 查询或创建标签
-        tag, created = Tag.objects.get_or_create(name=tag_name)
 
-        # 关联标签到笔记
-        note.tags.add(tag)
+        # 查询或创建标签并添加到笔记
+        for tag_name in tag_names:
+            tag, created = Tag.objects.get_or_create(name=tag_name.strip())  # 清除多余空格
+            note.tags.add(tag)
 
         # 构建响应数据
         note_data = {
@@ -298,7 +298,7 @@ def update_note_tag_view(request):
             "user_id": note.user_id,
             "title": note.title,
             "content": note.content,
-            "tags": [tag.name for tag in note.tags.all()],  # 返回所有关联的标签
+            "tags": [tag.name for tag in note.tags.all()],  # 返回标签列表
             "folder_id": note.folder_id,
             "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S") if note.updated_at else None,
@@ -365,6 +365,58 @@ def search_notes_by_tag_view(request):
             "msg": "success",
             "data": {
                 "notes": notes_data,
+            }
+        })
+
+    return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
+@csrf_exempt  # 禁用 CSRF 验证
+def update_note_title_view(request):
+    if request.method == 'POST':
+        # 验证并刷新 token
+        try:
+            token = verify_and_refresh_token(request)
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']  # 从 token 中获取 user_id
+        except Exception as e:
+            return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+        # 获取前端提交的数据
+        note_id = request.POST.get('note_id')  # 获取笔记 ID
+        title = request.POST.get('title')  # 获取笔记标题
+
+        # 验证必要参数
+        if not note_id or not title:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id 和 title"})
+
+        # 查询指定 ID 的笔记
+        try:
+            note = Note.objects.get(id=note_id)
+        except Note.DoesNotExist:
+            return JsonResponse({"code": 1, "msg": "笔记不存在"})
+
+        # 检查是否为当前用户的笔记
+        if note.user_id != user_id:
+            return JsonResponse({"code": 1, "msg": "您没有权限修改此笔记"})
+
+        # 更新笔记标题
+        note.title = title
+        note.save()
+
+        # 返回更新后的笔记信息
+        return JsonResponse({
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "id": note.id,
+                "user_id": note.user_id,
+                "title": note.title,
+                "content": note.content,
+                "folder_id": note.folder_id,
+                "tags": [tag.name for tag in note.tags.all()],
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S") if note.updated_at else None,
+                "deleted_at": note.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if note.deleted_at else None,
             }
         })
 

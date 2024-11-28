@@ -1,4 +1,7 @@
+import json
 from django import forms
+import logging
+logger = logging.getLogger(__name__)
 
 
 class CreateDateForm(forms.Form):
@@ -8,3 +11,7 @@ class CreateDateForm(forms.Form):
     time = forms.CharField(required=False)
 
 
+
+class GenerateDatePlanForm(forms.Form):
+    startday = forms.CharField()
+    plan = forms.JSONField()

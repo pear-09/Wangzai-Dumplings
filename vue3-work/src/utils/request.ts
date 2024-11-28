@@ -6,7 +6,7 @@ import type { AxiosInstance} from 'axios';
 
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  timeout: 10000, // 请求超时时间，单位毫秒
+  timeout: 100000, // 请求超时时间，单位毫秒
 });
 
 // 请求拦截器：可以在这里添加认证 token 等信息

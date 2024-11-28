@@ -10,4 +10,5 @@ urlpatterns = [
     path('status', views.update_status, name='status'),
     path('get-single', views.get_single_event, name='get-single'),
     path('delete', views.delete_schedule, name='delete'),
+    path('generate', views.generate_view, name='generate'),
 ]

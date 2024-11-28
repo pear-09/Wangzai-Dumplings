@@ -135,6 +135,7 @@ const closeDeleteModal = () => {
   <div class="note-list-container">
     <h1 class="page-title">{{ currentFolder?.name || '我的笔记' }}</h1>
     <div class="action-buttons">
+      <button class="view-button" >导入文件</button>
       <button class="view-button" @click="showNewNoteModal">新建笔记</button>
       <button class="view-button manage-button" @click="toggleManaging">
         {{ isManaging ? '确定' : '管理笔记' }}
@@ -148,8 +149,10 @@ const closeDeleteModal = () => {
           <h2 class="note-title">{{ note.title }}</h2>
         </div>
         <div v-show="isManaging" class="note-actions">
+          <button class="rename-button">重命名</button>
           <!-- <button class="view-button delete-button" @click="deleteNote($event, note.id.toString())">删除</button> -->
-          <button class="view-button delete-button" @click.stop="showDeleteModal(note.id.toString())">删除</button>
+          <button class="delete-button" @click.stop="showDeleteModal(note.id.toString())">删除</button>
+          
         </div>
       </div>
     </div>
@@ -316,8 +319,24 @@ const closeDeleteModal = () => {
   background-color: #218838;
 }
 
+.note-actions{
+  display: flex;
+  align-items: center;
+}
+
 .delete-button {
+  width: 50px;
+  height: 25px;
+  border: none;
   background-color: #dc3545;
+}
+
+.rename-button {
+  width: 60px;
+  height: 25px;
+  margin-right: 6px;
+  border: none;
+  background-color: #dcc035;
 }
 
 .delete-button:hover {
@@ -394,11 +413,6 @@ const closeDeleteModal = () => {
 
   .note-content {
     font-size: 0.95rem;
-  }
-
-  .view-button {
-    padding: 8px 15px;
-    font-size: 0.9rem;
   }
 
   .note-list {
