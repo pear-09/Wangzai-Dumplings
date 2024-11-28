@@ -11,6 +11,7 @@ const router = useRouter();
 const noteId = route.params.id === 'new' ? 'new' : Number(route.params.id); // 确保类型正确
 const isNewNote = noteId === 'new';
 const folderId = Number(route.params.folder_id); // 从路由参数获取 folderId
+const currentMode = ref<string>(''); // 当前模式
 
 // 检查传递的 title
 const noteTitle = ref<string>(
@@ -33,48 +34,125 @@ const note = ref<Note>({
 const quillEditor = ref<any>(null);
 const isSummaryMode = ref(false); // 控制摘要模式
 const selectedText = ref<string>(''); // 记录选中的文本
+const AI_model = ref(); 
+const mode_name = ref<string>('');
 const showOptions = ref(false); // 控制“√”“×”的显示
 const optionsPosition = ref({ x: 0, y: 0 }); // 选项按钮的位置
-// 发送摘要接口请求（使用 FormData）
-const sendSummary = async (text: string) => {
+
+// 弹窗显示状态
+const showStudyPlanDialog = ref(false);
+const days = ref(7); // 默认复习天数
+const degree = ref('medium'); // 默认详细程度
+
+//为每个模式单独定义一个接口调用函数，如调用名词解释、智能翻译等
+
+const sendSummary = async (text: string, AI_model:number) => {
+  // 发送生成摘要的请求
+  await sendAIRequest('/ez-note/AI/summary', text, 'summary', AI_model);
+};
+
+const sendDefinition = async (text: string, AI_model:number) => {
+  // 发送名词解释的请求
+  await sendAIRequest('/ez-note/AI/explain', text, 'summary', AI_model);
+};
+
+const sendTranslation = async (text: string, AI_model:number) => {
+  // 发送智能翻译的请求
+  await sendAIRequest('/ez-note/AI/translate', text, 'translation',AI_model);
+};
+
+const sendKeywords = async (text: string, AI_model:number) => {
+  // 发送提取关键词的请求
+  await sendAIRequest('/ez-note/AI/keywords', text, 'keywords', AI_model);
+};
+
+const sendStudyPlan = async (text: string, AI_model:number) => {
+  closeStudyPlanDialog();
+  // 发送生成复习计划的请求
+  await sendAIRequest('/ez-note/AI/plan', text, 'plan', AI_model);
+};
+
+const sendAIRequest = async (url: string, text: string, type: string, AI_model: number) => {
+  // 创建一个新的 AI 消息，先设置为加载状态
+  aiMessages.value.push({ sender: 'ai', content: '', loading: true });
+
+  // 获取当前消息的索引
+  const loadingMessageIndex = aiMessages.value.length - 1;
+
   try {
-    // 创建 FormData 对象
     const formData = new FormData();
-    formData.append('text', text);
-    formData.append('AI_model', 1);
-    // 发送 POST 请求
-    const response = await request.post('/ez-note/AI/summary', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // 确保 Content-Type 设置为 multipart/form-data
-      },
+    if(type === 'plan'){
+      formData.append('text', text);
+      formData.append('AI_model', AI_model);
+      formData.append('days',days.value.toString());
+      formData.append('degree',degree.value);
+    }else{
+      formData.append('text', text);
+      formData.append('AI_model', AI_model);
+    }
+    // 发送请求
+    const response = await request.post(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
 
     if (response.code === 0) {
-      alert('摘要已发送');
+      // 请求成功，更新 AI 消息内容
+      sendAIMessage(response, type);
+
+      // 更新消息的内容，并移除加载状态
+      aiMessages.value[loadingMessageIndex].content = response.data; // 将 AI 的实际回答填入消息
+      aiMessages.value[loadingMessageIndex].loading = false; // 取消加载状态
     } else {
-      console.error('摘要发送失败', response.msg);
+      console.error('请求失败', response.msg);
+      // 更新失败消息内容
+      aiMessages.value[loadingMessageIndex].content = '请求失败，请稍后重试';
+      aiMessages.value[loadingMessageIndex].loading = false;
     }
   } catch (error) {
-    console.error('发送失败', error);
+    console.error('请求发送失败', error);
+    // 请求发送失败时更新消息内容
+    aiMessages.value[loadingMessageIndex].content = '请求发送失败，请检查网络';
+    aiMessages.value[loadingMessageIndex].loading = false;
   }
 };
 
+//模式确认
+const confirmMode = (mode: string,name: string) => {
+  currentMode.value = mode;
+  // 发送模式确认消息到 AI 聊天窗口
+  aiMessages.value.push({ sender: 'user', content: name });
 
-// 进入摘要模式
-const enableSummaryMode = () => {
-  isSummaryMode.value = true;
+  // AI 立即回复
+  switch (mode) {
+    case 'summary':
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到摘要模式，请选中文本生成摘要。', loading: false});
+      break;
+    case 'translation':
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到翻译模式，请选中文本进行翻译。', loading: false });
+      break;
+    case 'definition':
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到名词解释模式，请选中文本查看解释。', loading: false });
+      break;
+    case 'keywords':
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到提取关键词模式，请选中文本提取关键词。', loading: false });
+      break;
+    case 'studyPlan':
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到生成复习计划模式，请选中文本生成计划。', loading: false });
+      break;
+    default:
+      aiMessages.value.push({ sender: 'ai', content: '未知模式，请重新选择。', loading: false });
+  }
+};
+
+//创建一个函数，用于根据点击的按钮切换模式：
+const setMode = (mode: string,name: string) => {
+  currentMode.value = mode;
   document.addEventListener('mouseup', handleTextSelection);
-  sendAIMessage('生成摘要');
-};
-
-// 退出摘要模式
-const disableSummaryMode = () => {
-  isSummaryMode.value = false;
-  selectedText.value = '';
-  showOptions.value = false;
-  document.removeEventListener('mouseup', handleTextSelection);
-};
-
+  confirmMode(mode,name);
+  if(mode === 'studyPlan'){
+    openStudyPlanDialog();
+  }
+}
 // 处理鼠标选中文本
 const handleTextSelection = (event: MouseEvent) => {
   const selection = window.getSelection();
@@ -89,9 +167,24 @@ const handleTextSelection = (event: MouseEvent) => {
 };
 
 // 点击“√”发送选中摘要
+//在确认选中文本时，根据 currentMode 调用不同的接口：
 const confirmSelection = () => {
-  if (selectedText.value) {
-    sendSummary(selectedText.value);
+  if (!selectedText.value) return;
+  switch (currentMode.value) {
+    case 'summary':
+      sendSummary(selectedText.value, AI_model.value);
+      break;
+    case 'definition':
+      sendDefinition(selectedText.value, AI_model.value);
+      break;
+    case 'translation':
+      sendTranslation(selectedText.value, AI_model.value);
+      break;
+    case 'keywords':
+      sendKeywords(selectedText.value, AI_model.value);
+      break;
+    default:
+      console.error('未知模式');
   }
   showOptions.value = false;
 };
@@ -130,7 +223,7 @@ const initNewNote = () => {
     title: noteTitle.value,
     content: '',
     folder_id: folderId,
-    tags: [],
+    tags: ['默认标签'],
     created_at: new Date().toISOString().slice(0, 10),
     updated_at: new Date().toISOString().slice(0, 10),
     deleted_at: null
@@ -159,11 +252,6 @@ const handleKeydown = (event: KeyboardEvent) => {
 // 删除标签
 const removeTag = (tag: string) => {
   note.value.tags = note.value.tags.filter(t => t !== tag);
-};
-
-// 更新 tags 字段
-const updateTags = () => {
-  // Tags 已通过输入框更新，因此可以通过上面的方法直接管理 tags
 };
 
 const saveTags = async () => {
@@ -244,24 +332,51 @@ const cancelEdit = () => {
 };
 
 const showAIChat = ref(false); // 控制AI对话框的显示与隐藏
-const aiMessages = ref<Array<{ sender: string, content: string }>>([]); // AI与用户的消息
-
+const loading = ref(false);  // 控制加载状态
+const aiMessages = ref<Array<{ sender: string, content: string, loading:boolean}>>([]); // AI与用户的消息
+const showPage1 = ref(true);
+const isSuccess = ref(false);
 // 切换AI对话框的显示/隐藏
-const toggleAIChat = () => {
+// 退出摘要模式
+const toggleAIChat = (mode:number) => {
   showAIChat.value = !showAIChat.value;
+  isSummaryMode.value = false;
+  selectedText.value = '';
+  showOptions.value = false;
+  AI_model.value = mode;
+  if(mode===1){
+    mode_name.value = 'KIMI';
+  }else
+    mode_name.value = 'Chat GPT';
+  document.removeEventListener('mouseup', handleTextSelection);
+};
+
+const toggleshowPage = () => {
+  showPage1.value = !showPage1.value;
 };
 
 // 发送AI消息
-const sendAIMessage = (message: string) => {
-  aiMessages.value.push({ sender: 'user', content: message }); // 用户的消息
-  // 模拟AI的回复
-  aiMessages.value.push({ sender: 'ai', content: `AI收到请求：${message}` });
+const sendAIMessage = (response: any, type: string) => {
+ switch (type) {
+    case 'translation':
+      aiMessages.value.push({ sender: 'ai', content: response.translation, loading:false });
+      break;
+    case 'summary':
+      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false  });
+      break;
+    case 'keywords':
+      aiMessages.value.push({ sender: 'ai', content: response.keywords, loading:false  });
+      break;
+    case 'explanation':
+      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false  });
+      break;
+    case 'plan':
+    aiMessages.value.push({ sender: 'ai', content: response.plan, loading:false  });
+    break;
+    default:
+      console.warn('未知类型:', type);
+  }
 
-  // 在这里你可以根据按钮内容发送请求到后端来获取AI的具体响应，模拟的AI回复可以替换为实际请求的响应
-  // 例如: 
-  // request.post('/ai/response', { query: message }).then(response => {
-  //    aiMessages.value.push({ sender: 'ai', content: response.data });
-  // });
 };
 
 
@@ -289,6 +404,16 @@ onMounted(() => {
   });
 });
 
+// 打开生成复习计划的弹窗
+const openStudyPlanDialog = () => {
+  showStudyPlanDialog.value = true;
+};
+
+// 关闭弹窗
+const closeStudyPlanDialog = () => {
+  showStudyPlanDialog.value = false;
+};
+
 </script>
 
 <template>
@@ -299,7 +424,7 @@ onMounted(() => {
         <!-- 使用 Quill 编辑器的容器 -->
         <div id="editor-container"></div>
 
-        <label for="note-tag">标签</label>
+        <label for="note-tag">标签 :</label>
 
         <!-- 显示标签卡片 -->
         <div class="tags-list">
@@ -308,28 +433,37 @@ onMounted(() => {
             :key="index"
             class="tag-card"
           >
+            <i class="iconfont icon-hashjinghao"></i>
             {{ tag }}
-            <button class="remove-btn" @click="removeTag(tag)">×</button>
+            <button class="remove-btn" @click="removeTag(tag)">
+              <i class="iconfont icon-cuo"></i>
+            </button>
           </div>
           <!-- 标签输入区域 -->
           <div class="tag-input-container">
-            <button v-if="!showInput" class="add-btn" @click="showInput = true">+</button>
+            <i v-if="!showInput" @click="showInput = true" class="iconfont icon-tianjia-"></i>
             <span v-if="showInput">
               <input
+              class="addtag"
               v-model="tagsInput"
               id="note-tag"
               type="text"
-              placeholder="输入标签"
+              placeholder="输入标签 ..."
               @keydown="handleKeydown"
             />
-            <button class="add-btn" @click="showInput = false">X</button>
+            <button class="add-btn" @click="addTag">
+              <i class="iconfont icon-huiche" style="font-size: 12px;"></i>
+            </button>
+            <button class="add-btn" @click="showInput = false">
+              <i class="iconfont icon-cuo" style="font-size: 14px; font-weight: 600;"></i>
+            </button>
             </span>
           </div>
         </div>
 
         <div class="actions">
-          <button @click="saveNote">保存</button>
-          <button @click="cancelEdit">取消</button>
+          <button class="btn1" @click="saveNote">保存</button>
+          <button class="btn2" @click="cancelEdit">取消</button>
         </div>
       </div>
     </div>
@@ -337,46 +471,109 @@ onMounted(() => {
     <div v-if="showAIChat" class="ai-chat-container">
       <div class="ai-chat-header">
         <div class="title">
-          笔记助手
+          {{mode_name}}
         </div>
-         <i class="iconfont icon-fangxiang-you" @click="toggleAIChat"></i>
+        <!-- 退出ai模式 -->
+        <i @click="toggleAIChat(AI_model)" class="iconfont icon-fangxiang-you"></i>
       </div>
       <div class="ai-chat-body">
         <div v-for="(message, index) in aiMessages" :key="index" class="ai-chat-message">
+           <!-- 用户消息 -->
           <div v-if="message.sender === 'user'" class="user-message">
             <span>{{ message.content }}</span>
           </div>
-          <div v-else class="ai-message">
-            <span>{{ message.content }}</span>
+            <!-- AI消息 -->
+            <div v-else class="ai-message">
+            <!-- 只有当有内容或正在加载时才显示头像 -->
+            <div v-if="message.loading || message.content" class="ai-avatar">
+              <i class="iconfont icon-gpt1"></i>
+            </div>
+
+            <!-- 如果该消息正在加载，显示加载动画 -->
+            <span v-if="message.loading">
+              <div class="loading-spinner">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+            </span>
+
+            <!-- 如果消息已经加载完成，则显示实际内容 -->
+            <span v-else v-if="message.content">
+              <div class="content">{{ message.content }}</div>
+            </span>
           </div>
+
         </div>
       </div>
+      <!-- <div v-if="isSuccess" class="tools">
+        <button>替换</button>
+        <button>重新</button>
+        <button>编辑</button>
+      </div> -->
       <div class="ai-chat-footer">
-        <button @click="sendAIMessage('笔记美化')">笔记美化</button>
-        <button @click="enableSummaryMode">生成摘要</button>
-        <button @click="disableSummaryMode">退出摘要模式</button>
+        <div v-if="showPage1" class="page1">
+          <button @click="setMode('summary','生成摘要')">生成摘要</button>
+          <button @click="setMode('definition','名词解释')">名词解释</button>
+          <button @click="setMode('translation','智能翻译')">智能翻译</button>
+        </div>
+        <div v-else class="page2">
+          <button @click="setMode('keywords','提取关键词')">提取关键词</button>
+          <button @click="setMode('studyPlan','生成复习计划')">生成复习计划</button>
+        </div>
+        <button class="next" @click="toggleshowPage">
+          <i class="iconfont icon-fangxiang-you"></i>
+        </button>
       </div>
-      
     </div>
 
     <!-- AI辅助按钮 -->
-    <button v-if="!showAIChat" class="ai-assist-btn" @click="toggleAIChat">AI辅助</button>
-  </div>
-   <!-- 摘要模式选项 -->
-   <div
-      v-if="showOptions"
-      class="selection-options"
-      :style="{ top: `${optionsPosition.y}px`, left: `${optionsPosition.x}px` }"
-    >
-      <button @click="confirmSelection">√</button>
-      <button @click="cancelSelection">×</button>
+    <div v-if="!showAIChat" class="btn-box">
+      <button class="ai-assist-btn" @click="toggleAIChat(1)">KIMI</button>
+      <button class="ai-assist-btn"  @click="toggleAIChat(0)">GPT</button>
     </div>
+    
+  </div>
+
+<!-- 模式选项 -->
+<div
+  v-if="showOptions"
+  class="selection-options"
+  :style="{ top: `${optionsPosition.y}px`, left: `${optionsPosition.x}px` }"
+>
+  <button @click="confirmSelection" class="option-btn confirm-btn">√</button>
+  <button @click="cancelSelection" class="option-btn cancel-btn">×</button>
+</div>
+
+<!-- 弹窗：输入天数，选择计划详细程度 -->
+<div v-if="showStudyPlanDialog" class="modal">
+  <div class="modal-content">
+    <h3 class="modal-title">生成复习计划</h3>
+    <label for="days">复习天数：</label>
+    <input type="number" v-model="days" id="days" min="1" max="14" required class="input-field"/>
+
+    <label for="degree">计划详细程度：</label>
+    <select v-model="degree" id="degree" class="input-field">
+      <option value="low">简单</option>
+      <option value="medium" selected>中等</option>
+      <option value="high">详细</option>
+    </select>
+
+    <div class="modal-buttons">
+      <button @click="sendStudyPlan(note.content, AI_model), showStudyPlanDialog = false;" class="btn confirm-btn">生成计划</button>
+      <button @click="closeStudyPlanDialog" class="btn cancel-btn">取消</button>
+    </div>
+  </div>
+</div>
+
 </template>
 
 <style scoped>
 .note-detail-container {
   width: 70%;
   padding: 20px;
+  padding-top: 0px;
+  margin-top: 0px;
   transition: width 0.3s ease;
 }
 
@@ -384,17 +581,6 @@ onMounted(() => {
   width: 100%;
 }
 
-.ai-chat-container {
-  width: 30%;
-  height: 640px;
-  background-color: #fff;
-  margin-top: 100px;
-  border-radius: 10px 0 0 10px;
-  box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
 
 .page-title {
   font-size: 24px;
@@ -405,6 +591,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+h2{
+  margin-bottom: 5px;
 }
 
 .note-form label {
@@ -419,21 +609,40 @@ onMounted(() => {
 }
 
 #editor-container {
-  height: 400px;
+  height: 360px;
   /* 设置编辑器的高度 */
 }
 
 .actions {
-  margin-top: 20px;
+  margin-top: 5px;
 }
 
 .actions button {
+  width: 80px;
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   margin-right: 10px;
+  color: #fff;
 }
+
+.actions .btn1{
+  background-color:#759a8b;
+}
+
+.actions .btn2{
+  background-color: #c7184a;
+}
+
+.actions .btn1:hover{
+  background-color:#67897b;
+}
+
+.actions .btn2:hover{
+  background-color:#892923;
+}
+
 
 /* 标签输入部分 */
 .tags-container {
@@ -449,22 +658,58 @@ onMounted(() => {
 
 .tag-card {
   background-color: #f1f1f1;
-  padding: 5px 10px;
-  border-radius: 20px;
+  padding: 8px;
+  /* padding-left: 15px; */
+  border-radius: 10px;
   display: flex;
   align-items: center;
 }
-input{
+ 
+.tag-card .icon-hashjinghao{
+  /* font-size: 10px; */
+  font-weight: 600;
+  transform: translateY(1px);
+  margin-right: 2px;
+  color: #28a745;
+}
+
+.tag-card .remove-btn .icon-cuo{
+  /* margin-left: 5px; */
+  font-weight: 700;
+  font-size: 20px;
+  color: rgb(202, 38, 38);
+  transition: all .5s ease;
+}
+
+.tag-card .remove-btn .icon-cuo:hover{
+  color: red;
+
+}
+
+.icon-tianjia-{
+  font-size: 38px;
+  color: #28a745;
+}
+.icon-tianjia-:hover{
+  color: #228037;
+  font-size: 39px;
+}
+
+.tag-input-container .addtag{
   border: none;
+  border-bottom: solid 1px #228037;
+  border-radius: 0;
+  background: none;
   outline: none;
   margin-right: 10px;
+  transform: translateY(2px);
+  cursor: pointer;
 }
 .remove-btn {
-  margin-left: 8px;
   background: none;
   border: none;
-  color: red;
   cursor: pointer;
+  transform: translateY(-4px);
 }
 
 .add-btn {
@@ -475,7 +720,9 @@ input{
   border: none;
   border-radius: 100%;
   /* padding: 6px 12px; */
+  margin-right: 5px;
   cursor: pointer;
+  transform: translateY(2px);
 }
 
 .box {
@@ -483,13 +730,20 @@ input{
   position: relative; /* Add this to position the AI button in relation to the container */
 }
 
-.ai-assist-btn {
+.btn-box{
+  width: 210px;
+  height: 60px;
   position: absolute;
   top: 20px;
   right: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.btn-box .ai-assist-btn{
   width: 100px;
   height: 40px;
-  background-color: #007bff;
+  background-color: #759a8b;
   color: white;
   padding: 10px 20px;
   border: none;
@@ -497,9 +751,15 @@ input{
   cursor: pointer;
 }
 
+.btn-box .ai-assist-btn:hover{
+  background-color: #67897b;
+}
+
 .ai-chat-container {
   width: 30%;
+  height: 700px;
   background-color: #fff;
+  margin-top: 0px;
   border-radius: 10px 0 0 10px;
   box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -509,7 +769,7 @@ input{
 
 .ai-chat-header {
   padding: 15px;
-  background-color: #28a745;
+  background-color: #759a8b;
   color: white;
   display: flex;
   justify-content: space-between;
@@ -534,19 +794,53 @@ input{
 }
 
 .ai-chat-footer {
+  width: 100%;
   padding: 10px;
   background-color: #f1f1f1;
   display: flex;
+  justify-content: space-between;
+}
+
+.ai-chat-footer .page1{
+  width: 90%;
+  display: flex;
   justify-content: space-around;
+  align-items: center;
+}
+
+.ai-chat-footer .page2 {
+  width: 90%;
+  display: flex;
+  align-items: center;
+}
+
+.ai-chat-footer .page2 button{
+  width: 120px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.ai-chat-footer .next{
+  width: 10%;
+  height: 40px;
+  margin-right: 5px;
+  background-color: transparent;
 }
 
 .ai-chat-footer button {
-  background-color: #28a745;
+  width: 100px;
+  height: 40px;
+  background-color: #88b791;
   color: white;
   border: none;
-  padding: 10px;
+  padding: 5px;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 20px;
+}
+
+.ai-chat-footer .next i{
+  font-size: 20px;
+  color: #28a745;
 }
 
 .ai-chat-message {
@@ -555,10 +849,55 @@ input{
 
 .ai-chat-message .user-message {
   text-align: right;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+/* 用户消息气泡 */
+.ai-chat-message .user-message span {
+  background-color: #28a745; /* 绿色背景 */
+  color: white; /* 文字颜色 */
+  padding: 10px;
+  border-radius: 5px;
 }
 
 .ai-chat-message .ai-message {
   text-align: left;
+  display: flex;
+}
+
+.ai-avatar {
+  /* width: 35px;
+  height: 35px;
+  display: flex;
+  justify-content: center; */
+  align-items: center;
+  /* padding: 5px;
+  border-radius: 50%; 头像圆形
+  margin-right: 5px; 头像与消息之间的间距 */
+}
+
+.ai-avatar i {
+  width: 35px;
+  height: 35px;
+  margin: auto;
+  font-size: 35px;
+  margin-right: 5px;
+}
+
+.ai-message{
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.ai-message span {
+  background-color: #e1e1e1;
+  padding: 8px;
+  border-radius: 5px;
+}
+
+.ai-message span .content {
+  transform: translateX(5px);
 }
 
 .ai-chat-message span {
@@ -581,4 +920,154 @@ input{
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+
+/* 加载动画样式 */
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  gap: 5px;  /* 圆点之间的间距 */
+  transform: translateY(5px);
+}
+
+/* 小圆点样式 */
+.loading-spinner .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #28a745;
+  animation: bounce 1.5s infinite ease-in-out;
+}
+
+/* 给每个圆点设置不同的动画延迟，实现跳动效果 */
+.loading-spinner .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.loading-spinner .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.loading-spinner .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* 跳动动画 */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);  /* 上下跳动的距离 */
+  }
+}
+
+/* 弹窗背景 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* 半透明背景 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* 确保弹窗位于最上层 */
+  padding: 20px;
+}
+
+/* 弹窗内容 */
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  width: 350px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* 软阴影 */
+  /* text-align: center; */
+}
+
+/* 弹窗标题 */
+.modal-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* 输入框和下拉框 */
+.input-field {
+  width: 100%;
+  padding: 8px;
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+/* 按钮通用样式 */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+  transform: scale(1.05); /* 鼠标悬停时放大按钮 */
+}
+
+/* 确认按钮样式 */
+.confirm-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background-color: #45a049;
+}
+
+/* 取消按钮样式 */
+.cancel-btn {
+  background-color: #f44336; 
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #e53935;
+}
+
+/* 按钮容器 */
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+/* 模式选项按钮 */
+.selection-options {
+  position: absolute;
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* 软阴影 */
+}
+
+.option-btn {
+  font-size: 20px;
+  padding: 10px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.option-btn:hover {
+  color: #007bff;
+}
+
+.confirm-btn {
+  font-weight: bold;
+}
+
+
 </style>

@@ -122,7 +122,7 @@ const prevTestimonial = () => {
         </div>
       </section>
       </div>
-      <div class="testimonials">
+      <!-- <div class="testimonials">
     <h2>What Our Clients Say</h2>
     <div class="testimonial-card">
       <img :src="testimonials[currentIndex].avatar" alt="Avatar" class="avatar" />
@@ -130,12 +130,12 @@ const prevTestimonial = () => {
       <p class="client-name">- {{ testimonials[currentIndex].name }}</p>
     </div>
 
-    <!-- 导航按钮 -->
+
     <div class="testimonial-controls">
       <button @click="prevTestimonial" class="control-btn">Previous</button>
       <button @click="nextTestimonial" class="control-btn">Next</button>
     </div>
-  </div>
+  </div> -->
       <!-- 页脚模块 -->
       <footer class="footer">
         <p>&copy; 2024 YourCompany. All rights reserved.</p>
@@ -165,7 +165,7 @@ a{
 }
 .lunbotu {
     width: 100%;
-    height: 500px;
+    height: 600px;
     display: flex;
     align-items: center;
     position: relative;
@@ -223,13 +223,19 @@ a{
   align-items: center;
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
   background-color: #fdfffc;
   box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.2);
   border-radius: 5px;
   cursor: pointer;
   z-index: 10;
 }
+
+.lunbotu .btn:hover{
+  background-color: #e5e7e3cd;
+  transform: scale(1.05);
+  transition: all .3s ease;
+}
+
 .lunbotu .prev{
     left:18px
 }
@@ -246,6 +252,11 @@ a{
     margin: auto;
     object-fit: cover;
     transition: opacity 0.5s ease;
+}
+
+.lunbotu .images:hover{
+  transform: scale(1.1);
+  transition: all 0.5s ease;
 }
 
 /* 底部指示器 */
@@ -277,7 +288,7 @@ a{
     position: absolute;
     bottom: 25px;
     left: 20px;
-    transform: rotate(85deg) scale(2); /* 顺时针旋转90度 */
+    transform: rotate(95deg) scale(2); /* 顺时针旋转90度 */
 
 }
 
