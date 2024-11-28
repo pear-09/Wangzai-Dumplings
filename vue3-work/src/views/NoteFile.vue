@@ -2,23 +2,27 @@
   <div class="note-file-container">
     <!-- 左侧文件夹列表 -->
     <div class="sidebar">
-      <h2>文件夹列表</h2>
+
+      <h2>
+        <i class="iconfont icon-wenjianjia" style="font-size: 28px; margin-right: 4px;color: cadetblue;"></i>
+        文件夹列表</h2>
       <!-- <button @click="createFolder" class="create-folder-button">新建文件夹</button>    -->
       <button @click="openCreateFolderModal" class="create-folder-button">新建文件夹</button>   
-      <button @click="manageFolder" class="create-folder-button">{{ isManaging ? '确定' : '管理文件夹' }}</button>   
+      <button @click="manageFolder" 
+      :class="{'manage-folder-button': isManaging, 'create-folder-button': !isManaging}">
+        {{ isManaging ? '确定' : '管理文件夹' }}</button>   
       <div class="folder-list">
         <div
           v-for="folder in folders"
           :key="folder.id"
-          class="folder-item"
+          :class="{'folder-item1': isManaging, 'folder-item': !isManaging}"
           @click="selectFolder(folder.id, folder.name)"
         >
         <h3>{{ folder.name }}</h3>
         <div v-show="isManaging" class="note-actions">
-            <button class="view-button rename-button" @click.stop="renameFolder(folder)">编辑</button>
-            <button class="view-button delete-button" @click.stop="deleteFolder(folder)">删除</button>
-          </div>
-
+            <i class="rename-button iconfont icon-bianji" @click.stop="renameFolder(folder)"></i>
+            <i class="delete-button iconfont icon-shanchu" @click.stop="deleteFolder(folder)"></i>
+        </div>
         </div>
       </div>
     </div>
@@ -31,7 +35,7 @@
     <div v-if="isModalVisible" class="modal-overlay" @click="closeCreateFolderModal">
       <div class="modal" @click.stop>
         <h3>新建文件夹</h3>
-        <input v-model="newFolderName" type="text" class="modal-input" placeholder="请输入文件夹名称" />
+        <input v-model="newFolderName" type="text" class="modal-input" placeholder="请输入文件夹名称"  @keydown="handleKeydown" />
         <div class="modal-actions">
           <button @click="createFolder" class="modal-button">创建</button>
           <button @click="closeCreateFolderModal" class="modal-button cancel">取消</button>
@@ -39,6 +43,7 @@
       </div>
     </div>
   </div>
+  
 </template>
 
 <script setup lang="ts">
@@ -169,6 +174,12 @@ const deleteFolder = (folder: Notefiles) => {
   }
 };
 
+// 处理按回车新建文件夹
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter') {
+    createFolder();
+  }
+};
 
 onMounted(() => {
   getFolders();  // 获取文件夹数据
@@ -186,6 +197,7 @@ onMounted(() => {
 .sidebar {
   width: 250px;
   padding: 20px;
+  padding-top: 0px;
   background: #fff;
   border-right: 1px solid #ddd;
   /* box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); */
@@ -193,7 +205,7 @@ onMounted(() => {
   flex-direction: column;
 }
 .create-folder-button {
-  background-color: #4CAF50;
+  background-color: #00a687;
   color: white;
   border: none;
   padding: 10px 15px;
@@ -205,7 +217,28 @@ onMounted(() => {
 }
 
 .create-folder-button:hover {
-  background-color: #45a049;
+  background-color:#009691;
+}
+
+.folder-item:hover {
+  background-color: #e7e7e7;
+  transform: scale(1.05);
+}
+
+.manage-folder-button{
+  background-color: #c7184a;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.manage-folder-button:hover{
+  background-color:#b7003f;
 }
 
 .folder-list {
@@ -225,12 +258,27 @@ onMounted(() => {
   transition: background-color 0.3s, transform 0.3s;
 }
 
-.folder-item:hover {
-  background-color: #e7e7e7;
-  transform: scale(1.05);
+.folder-item1 {
+  height: 30px;
+  display: flex;
+  justify-content: space-between;
+  background-color: #fafafa;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
 }
 
+
 .folder-item h3 {
+  margin:auto;
+  margin-left: 10px;
+  font-size: 16px;
+  color: #333;
+}
+
+.folder-item1 h3 {
   margin:auto;
   margin-left: 10px;
   font-size: 16px;
@@ -271,23 +319,38 @@ onMounted(() => {
 
 /* 按钮样式 */
 .view-button {
-  width: 60px;
-  height: 25px;
-  color: #fff;
+  width: 40px;
+  height: 30px;
   border: none;
-  border-radius: 5px;
-  font-size: 12px;
+  font-size: 30px;
+  /* background-color: transparent; */
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: color 0.3s ease, transform 0.3s ease;
 }
 
 .rename-button {
-  background-color: #ffc107;
-  margin-right: 5px; 
+  font-size: 28px;
+  margin-right: 10px;
+  color:#009691;
+  cursor: pointer;
+}
+
+.rename-button:hover{
+  color:#429490;
+  transform: scale(1.1);
+  transition: all .3s ease;
 }
 
 .delete-button {
-  background-color: #dc3545;
+  font-size: 28px;
+  color: #dc3545;
+  cursor: pointer;
+}
+
+.delete-button:hover{
+  color: #b7003f;
+  transform: scale(1.1);
+  transition: all .3s ease;
 }
 
 .note-actions {
@@ -360,20 +423,15 @@ onMounted(() => {
 }
 
 .modal-button {
-  background-color: #4CAF50;
+  background-color: #429490;;
   color: white;
 }
 
 .modal-button:hover {
-  background-color: #45a049;
+  background-color: #009691;
 }
 
 .note-actions {
   display: flex;
 }
-
-/* .view-button {
-  margin-left: 10px;
-} */
-
 </style>

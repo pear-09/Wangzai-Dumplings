@@ -72,10 +72,6 @@ const goToNoteDetail = (id: string) => {
   router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id } });
 };
 
-// const goToNewNote = () => {
-//   router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id: 'new' } });
-// };
-
 // 显示新建笔记弹窗
 const showNewNoteModal = () => {
   isModalVisible.value = true;
@@ -129,6 +125,12 @@ const closeDeleteModal = () => {
   isDeleteModalVisible.value = false;
   deletingNoteId.value = null;
 };
+// 处理按回车新建笔记
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter') {
+    confirmNewNote();
+  }
+};
 </script>
 
 <template>
@@ -136,22 +138,23 @@ const closeDeleteModal = () => {
     <h1 class="page-title">{{ currentFolder?.name || '我的笔记' }}</h1>
     <div class="action-buttons">
       <button class="view-button" @click="showNewNoteModal">新建笔记</button>
-      <button class="view-button manage-button" @click="toggleManaging">
+      <button class="view-button manage-button"
+       @click="toggleManaging">
         {{ isManaging ? '确定' : '管理笔记' }}
       </button>
     </div>
 
     <div v-if="currentFolder && currentFolder.notes.length > 0" class="note-list">
       <div v-for="note in currentFolder.notes" :key="note.id" class="note-item"
-        @click="goToNoteDetail(note.id.toString(), note.folder_id.toString())">
+        @click="goToNoteDetail(note.id.toString(), note.folder_id.toString())"
+        :class="{'note-item gl': isManaging, 'note-item bgl': !isManaging}">
         <div class="note-header">
           <h2 class="note-title">{{ note.title }}</h2>
+          <p>{{ note.created_at }}</p>
         </div>
         <div v-show="isManaging" class="note-actions">
-          <button class="rename-button">重命名</button>
-          <!-- <button class="view-button delete-button" @click="deleteNote($event, note.id.toString())">删除</button> -->
-          <button class="delete-button" @click.stop="showDeleteModal(note.id.toString())">删除</button>
-          
+            <i class="rename-button iconfont icon-bianji"></i>
+            <i class="delete-button iconfont icon-shanchu" @click.stop="showDeleteModal(note.id.toString())"></i>
         </div>
       </div>
     </div>
@@ -164,7 +167,7 @@ const closeDeleteModal = () => {
   <div v-if="isModalVisible" class="modal">
     <div class="modal-content">
       <h2>新建笔记</h2>
-      <input v-model="newNoteTitle" type="text" placeholder="请输入笔记标题" class="modal-input"/>
+      <input v-model="newNoteTitle" type="text" placeholder="请输入笔记标题" class="modal-input" @keydown="handleKeydown"/>
       <div class="modal-actions">
         <button @click="confirmNewNote" class="modal-button confirm-button">确定</button>
         <button @click="closeModal" class="modal-button cancel-button">取消</button>
@@ -187,6 +190,7 @@ const closeDeleteModal = () => {
 
 <style scoped>
 .modal {
+  z-index: 2;
   position: fixed;
   top: 0;
   left: 0;
@@ -244,12 +248,12 @@ const closeDeleteModal = () => {
 }
 
 .confirm-button {
-  background-color: #759a8b;
+  background-color: #429490;
   color: #fff;
 }
 
 .confirm-button:hover {
-  background-color: #218838;
+  background-color: #009691;;
   /* transform: translateY(-2px); */
 }
 
@@ -270,7 +274,7 @@ const closeDeleteModal = () => {
   margin: 0 auto;
   padding: 20px;
   font-family: 'Roboto', sans-serif;
-  background-color: #f9f9f9;
+  /* background-color: #f9f9f9; */
   border-radius: 8px;
   /* box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); */
   border: none;
@@ -280,6 +284,7 @@ const closeDeleteModal = () => {
 .page-title {
   font-size: 2.2rem;
   font-weight: bold;
+  margin-top: 0px;
   margin-bottom: 20px;
   color: #333;
   text-transform: uppercase;
@@ -295,7 +300,7 @@ const closeDeleteModal = () => {
 
 /* 按钮样式 */
 .view-button {
-  background-color: #007bff;
+  background-color: #00a687;
   color: #fff;
   border: none;
   padding: 10px 20px;
@@ -306,16 +311,16 @@ const closeDeleteModal = () => {
 }
 
 .view-button:hover {
-  background-color: #0056b3;
+  background-color: #009691;
   /* transform: translateY(-2px); */
 }
 
 .manage-button {
-  background-color: #28a745;
+  background-color: #c7184a;
 }
 
 .manage-button:hover {
-  background-color: #218838;
+  background-color: #b7003f;
 }
 
 .note-actions{
@@ -323,23 +328,29 @@ const closeDeleteModal = () => {
   align-items: center;
 }
 
-.delete-button {
-  width: 50px;
-  height: 25px;
-  border: none;
-  background-color: #dc3545;
-}
-
 .rename-button {
-  width: 60px;
-  height: 25px;
-  margin-right: 6px;
-  border: none;
-  background-color: #dcc035;
+  font-size: 28px;
+  margin-right: 10px;
+  color:#009691;
+  cursor: pointer;
 }
 
-.delete-button:hover {
-  background-color: #c82333;
+.rename-button:hover{
+  color:#429490;
+  transform: scale(1.1);
+  transition: all .3s ease;
+}
+
+.delete-button {
+  font-size: 28px;
+  color: #dc3545;
+  cursor: pointer;
+}
+
+.delete-button:hover{
+  color: #b7003f;
+  transform: scale(1.1);
+  transition: all .3s ease;
 }
 
 /* 笔记列表 */
@@ -361,7 +372,7 @@ const closeDeleteModal = () => {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.note-item:hover {
+.bgl:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
@@ -369,8 +380,8 @@ const closeDeleteModal = () => {
 /* 笔记标题 */
 .note-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .note-title {
@@ -379,6 +390,12 @@ const closeDeleteModal = () => {
   color: #333;
   margin: 0;
   line-height: 1.4;
+}
+
+.note-header p{
+  margin-top: 5px;
+  margin-bottom: 0px;
+  color: #888;
 }
 
 .note-date {
