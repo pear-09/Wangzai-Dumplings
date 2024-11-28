@@ -26,7 +26,10 @@ const currentFolder = ref<{
 
 // 管理模式状态
 const isManaging = ref(false);
-
+const isModalVisible = ref(false); // 控制弹窗显示
+const newNoteTitle = ref(''); // 新建笔记的默认标题
+const isDeleteModalVisible = ref(false); // 控制删除确认弹窗显示
+const deletingNoteId = ref<string | null>(null); // 待删除笔记的 ID
 // 获取该文件夹下的笔记
 const getNotes = async (folderId: number) => {
   try {
@@ -69,40 +72,62 @@ const goToNoteDetail = (id: string) => {
   router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id } });
 };
 
-const goToNewNote = () => {
-  router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id: 'new' } });
+// const goToNewNote = () => {
+//   router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id: 'new' } });
+// };
+
+// 显示新建笔记弹窗
+const showNewNoteModal = () => {
+  isModalVisible.value = true;
 };
 
-//删除笔记
-const deleteNote = async (event: Event, noteId: string) => {
-  // 阻止事件冒泡，防止点击删除按钮时触发跳转
-  event.stopPropagation();
+// 处理弹窗确认逻辑
+const confirmNewNote = () => {
+  isModalVisible.value = false;
+  console.log(newNoteTitle.value);
+  router.push({ name: 'noteDetail', params: { folder_id: props.folderId, id: 'new', title: newNoteTitle.value } });
+};
 
-  // 确认删除操作
-  if (confirm("确定要删除这篇笔记吗？")) {
-    try {
-      // 使用 FormData 构造请求体
-      const formData = new FormData();
-      formData.append("note_id", noteId);
+// 关闭弹窗
+const closeModal = () => {
+  isModalVisible.value = false;
+};
 
-      // 发起 POST 请求，拦截器会自动设置 Content-Type
-      const response = await request.post(`/ez-note/note/delete`, formData);
+// 显示删除确认弹窗
+const showDeleteModal = (noteId: string) => {
+  deletingNoteId.value = noteId;
+  isDeleteModalVisible.value = true;
+};
 
-      if (response.code === 0) {
-        // 删除成功后，更新笔记列表
-        const noteIndex = currentFolder.value.notes.findIndex(note => note.id.toString() === noteId);
-        if (noteIndex !== -1) {
-          currentFolder.value.notes.splice(noteIndex, 1); // 从本地删除该笔记
-        }
-        alert("笔记删除成功");
-      } else {
-        alert(response.msg); // 如果删除失败，显示错误信息
+// 确认删除笔记
+const confirmDeleteNote = async () => {
+  if (!deletingNoteId.value) return;
+  try {
+    const formData = new FormData();
+    formData.append("note_id", deletingNoteId.value);
+
+    const response = await request.post(`/ez-note/note/delete`, formData);
+
+    if (response.code === 0) {
+      const noteIndex = currentFolder.value.notes.findIndex(note => note.id.toString() === deletingNoteId.value);
+      if (noteIndex !== -1) {
+        currentFolder.value.notes.splice(noteIndex, 1);
       }
-    } catch (error) {
-      console.error("删除笔记失败:", error);
-      alert("请求失败，请稍后重试");
+      alert("笔记删除成功");
+    } else {
+      alert(response.msg);
     }
+  } catch (error) {
+    console.error("删除笔记失败:", error);
+    alert("请求失败，请稍后重试");
+  } finally {
+    closeDeleteModal();
   }
+};
+// 关闭删除确认弹窗
+const closeDeleteModal = () => {
+  isDeleteModalVisible.value = false;
+  deletingNoteId.value = null;
 };
 </script>
 
@@ -110,31 +135,135 @@ const deleteNote = async (event: Event, noteId: string) => {
   <div class="note-list-container">
     <h1 class="page-title">{{ currentFolder?.name || '我的笔记' }}</h1>
     <div class="action-buttons">
-      <button class="view-button" @click="goToNewNote">新建笔记</button>
+      <button class="view-button" >导入文件</button>
+      <button class="view-button" @click="showNewNoteModal">新建笔记</button>
       <button class="view-button manage-button" @click="toggleManaging">
         {{ isManaging ? '确定' : '管理笔记' }}
       </button>
     </div>
-    
+
     <div v-if="currentFolder && currentFolder.notes.length > 0" class="note-list">
-      <div v-for="note in currentFolder.notes" :key="note.id" class="note-item" @click="goToNoteDetail(note.id.toString(), note.folder_id.toString())">
+      <div v-for="note in currentFolder.notes" :key="note.id" class="note-item"
+        @click="goToNoteDetail(note.id.toString(), note.folder_id.toString())">
         <div class="note-header">
           <h2 class="note-title">{{ note.title }}</h2>
         </div>
         <div v-show="isManaging" class="note-actions">
-          <button class="view-button delete-button" @click="deleteNote($event, note.id.toString())">删除</button>
+          <button class="rename-button">重命名</button>
+          <!-- <button class="view-button delete-button" @click="deleteNote($event, note.id.toString())">删除</button> -->
+          <button class="delete-button" @click.stop="showDeleteModal(note.id.toString())">删除</button>
+          
         </div>
       </div>
     </div>
     <div v-else>
-      <p>该文件夹下没有笔记</p>
+      <p style="font-weight: 700;">暂时没有笔记，赶快去创建一个吧！</p>
     </div>
   </div>
+
+  <!-- 新建笔记弹窗 -->
+  <div v-if="isModalVisible" class="modal">
+    <div class="modal-content">
+      <h2>新建笔记</h2>
+      <input v-model="newNoteTitle" type="text" placeholder="请输入笔记标题" class="modal-input"/>
+      <div class="modal-actions">
+        <button @click="confirmNewNote" class="modal-button confirm-button">确定</button>
+        <button @click="closeModal" class="modal-button cancel-button">取消</button>
+      </div>
+    </div>
+  </div>
+
+   <!-- 删除确认弹窗 -->
+   <div v-if="isDeleteModalVisible" class="modal">
+      <div class="modal-content">
+        <h3>确认删除</h3>
+        <p>确定要删除这篇笔记吗？</p>
+        <div class="modal-actions">
+          <button @click="confirmDeleteNote" class="modal-button confirm-button">删除</button>
+          <button @click="closeDeleteModal" class="modal-button cancel-button">取消</button>
+        </div>
+      </div>
+    </div>
 </template>
 
-
-
 <style scoped>
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+}
+.modal h3{
+  text-align: center;
+  margin-top: 0px;
+}
+.modal-content {
+  background: #fff;
+  padding: 30px;
+  border-radius: 12px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-input {
+  width: 90%;
+  padding: 12px;
+  margin: 10px 0;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.modal-input:focus {
+  border-color: #759a8b;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.modal-button {
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  border: none;
+}
+
+.confirm-button {
+  background-color: #759a8b;
+  color: #fff;
+}
+
+.confirm-button:hover {
+  background-color: #218838;
+  /* transform: translateY(-2px); */
+}
+
+.cancel-button {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.cancel-button:hover {
+  background-color: #c82333;
+  /* transform: translateY(-2px); */
+}
+
 /* 页面布局 */
 .note-list-container {
   width: 90%;
@@ -144,27 +273,25 @@ const deleteNote = async (event: Event, noteId: string) => {
   font-family: 'Roboto', sans-serif;
   background-color: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  /* box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); */
+  border: none;
 }
 
 /* 页面标题 */
 .page-title {
-  /* text-align: center; */
   font-size: 2.2rem;
   font-weight: bold;
   margin-bottom: 20px;
   color: #333;
   text-transform: uppercase;
-  /* transform: translateX(-380px); */
 }
 
 /* 按钮组 */
 .action-buttons {
   display: flex;
-  justify-content:baseline;
+  justify-content: baseline;
   gap: 15px;
   margin-bottom: 20px;
-  /* transform: translateX(-350px); */
 }
 
 /* 按钮样式 */
@@ -173,7 +300,7 @@ const deleteNote = async (event: Event, noteId: string) => {
   color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 25px;
+  border-radius: 8px;
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.3s ease;
@@ -181,7 +308,7 @@ const deleteNote = async (event: Event, noteId: string) => {
 
 .view-button:hover {
   background-color: #0056b3;
-  transform: translateY(-2px);
+  /* transform: translateY(-2px); */
 }
 
 .manage-button {
@@ -192,8 +319,24 @@ const deleteNote = async (event: Event, noteId: string) => {
   background-color: #218838;
 }
 
+.note-actions{
+  display: flex;
+  align-items: center;
+}
+
 .delete-button {
+  width: 50px;
+  height: 25px;
+  border: none;
   background-color: #dc3545;
+}
+
+.rename-button {
+  width: 60px;
+  height: 25px;
+  margin-right: 6px;
+  border: none;
+  background-color: #dcc035;
 }
 
 .delete-button:hover {
@@ -272,15 +415,20 @@ const deleteNote = async (event: Event, noteId: string) => {
     font-size: 0.95rem;
   }
 
-  .view-button {
-    padding: 8px 15px;
-    font-size: 0.9rem;
-  }
-
   .note-list {
-    grid-template-columns: 1fr; /* 单列布局 */
+    grid-template-columns: 1fr;
   }
 }
 
+/* 动画效果 */
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% { transform: translateY(30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
 </style>
 

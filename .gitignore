@@ -5,3 +5,9 @@ backend/backend/__pycache__/
 backend/note/__pycache__/
 backend/user/migrations/__pycache__/
 backend/note/migrations/__pycache__/
+backend/date/
+backend/folder/__pycache__/
+backend/folder/migrations/__pycache__/
+backend/.env
+backend/AI/__pycache__/
+backend/AI/migrations/__pycache__/
