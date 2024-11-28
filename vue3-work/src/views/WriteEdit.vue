@@ -104,12 +104,37 @@
       </div>
     </div>
   </div>
+  <div>
+    <div v-if="showBeautifiedContent" class="popupbeauty">
+      <textarea v-model="beautifiedText" class="editable-textarea"></textarea>
+      <button @click="replaceWithBeautifiedContent">插入美化内容</button>
+      <button @click="cancelBeautify">取消</button>
+    </div>
+  </div>
+
+  <div v-if="showPopupcontent" class="popcontent">
+    <div class="popcontent-body">
+      <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
+      <div class="popcontent-buttons">
+        <button @click="handleInsert">插入</button>
+        <button @click="closePopContent">取消</button>
+      </div>
+    </div>
+  </div>
   <!-- 选择文本后的操作按钮 -->
 <div v-if="showSelectionButtons" class="selection-buttons">
   <button @click="handleSelectionChoice(true)">√</button>
   <button @click="handleSelectionChoice(false)">×</button>
 </div>
-
+<div v-if="showParagraphPopup" class="popcontent">
+  <div class="popcontent-body">
+    <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
+    <div class="popcontent-buttons">
+      <button @click="handleInsert">插入</button>
+      <button @click="closeParagraphPopup">取消</button>
+    </div>
+  </div>
+</div>
 </template>
 
 
@@ -127,9 +152,10 @@ const docId = isNew ? null : route.params.id;
 
 const folderId = route.query.folder_id || 0;
 const folderName = ref(route.query.docName || '无标题');
-const quillEditor = ref<any>(null);
+
 let saveInterval: any = null;  // 用于存储定时器ID
 const showPopup = ref(false);
+const showPopupcontent = ref(false);
 const popupTitle = ref('');
 const popupType = ref('');
 const formData = ref<{
@@ -151,6 +177,47 @@ const formData = ref<{
   type: '',
   AI_model: 0  // 默认值为 0
 });
+
+
+
+
+// 定义响应式状态
+const showParagraphPopup = ref(false);  // 用来控制弹窗是否显示
+const popInputContent = ref('');  // 用于输入框的双向绑定
+
+// 弹窗打开的函数
+const openParagraphPopup = () => {
+  showParagraphPopup.value = true;
+};
+
+// 弹窗关闭的函数
+const closeParagraphPopup = () => {
+  showParagraphPopup.value = false;
+};
+
+const quillEditor = ref(null);  // 这里 quillEditor 的类型是 `Ref<Quill | null>`
+// 插入弹窗编辑器的内容到 Quill 编辑器中
+const insertIntoQuill = () => {
+  console.log('insertIntoQuill called'); // 检查函数是否被调用
+
+  if (quillEditor.value && popInputContent.value) {
+    console.log(quillEditor.value);
+
+    // 获取文档的总长度，作为插入位置
+    const insertPosition = quillEditor.value.getLength(); // 获取文章末尾位置
+
+    // 插入弹窗内容到文章末尾
+    quillEditor.value.insertText(insertPosition, popInputContent.value);
+
+    // 隐藏弹窗
+    showParagraphPopup.value = false;
+  }
+};
+
+const handleInsert = () => {
+  insertIntoQuill();
+};
+
 
 onMounted(async () => {
   quillEditor.value = new Quill('#editor-container', {
@@ -191,6 +258,7 @@ onMounted(async () => {
   featureButton.title = '功能';
   const featureDropdown = document.createElement('select');
   [
+    '无',
     '段落美化',
     '生成段落',
     '续写内容',
@@ -225,9 +293,15 @@ onMounted(async () => {
     }
   });
 
+
 });
+
+const beautifiedText = ref<string>(''); // 用来存储后端返回的段落美化内容
+const showBeautifiedContent = ref(false);  // 控制是否显示美化后的内容
 const selectedRange = ref(null);
 const showSelectionButtons = ref(false);
+let lastAIModel = formData.value.AI_model;  // 初始化 lastAIModel 来保存上次的值
+
 
 const showTextSelectionOptions = (range) => {
   selectedRange.value = range;
@@ -309,6 +383,8 @@ const showPopupDetails = (title, type) => {
 
 const closePopup = () => {
   showPopup.value = false;
+  // 保持上次的 AI_model 值
+  formData.value.AI_model = lastAIModel;
   formData.value = {
     text: '',
     length: 0,
@@ -316,7 +392,8 @@ const closePopup = () => {
     tone: '',
     style: '',
     content_type: '',
-    type: ''
+    type: '',
+    AI_model:lastAIModel,
   };
 };
 
@@ -362,8 +439,8 @@ const beautifyParagraph = async () => {
     });
 
     if (response.code === 0) {
-      console.log('段落美化成功', response.data);
-      formData.value.text = response.data.text;  // 更新文本内容
+      beautifiedText.value = response.translation;  // 存储后端返回的段落美化后的文本
+      showBeautifiedContent.value = true;  // 显示美化后的内容
     } else {
       console.log('段落美化失败');
     }
@@ -371,33 +448,64 @@ const beautifyParagraph = async () => {
     console.error('段落美化请求失败:', error);
   }
 };
-
-
-const generateParagraph = async () => {
-  try {
-    // 创建 FormData 对象
-    const formDataToSend = new FormData();
-    formDataToSend.append('prompt', formData.value.prompt);  // 添加生成段落的提示语
-    formDataToSend.append('length', formData.value.length.toString());  // 添加段落的长度
-    formDataToSend.append('tone', formData.value.tone);  // 添加写作的语气
-    formDataToSend.append('style', formData.value.style);  // 添加写作风格
-    formDataToSend.append('AI_model', formData.value.AI_model.toString());  // 添加选择的 AI 模型
-
-    // 请求后端生成段落接口
-    const response = await request.post('/ez-note/AI/generate', formDataToSend, {
-      headers: { 'Content-Type': 'multipart/form-data' }  // 设置请求头为 multipart/form-data
-    });
-
-    if (response.code === 0) {
-      console.log('生成段落成功', response.data);
-      formData.value.text = response.data.text;  // 更新文本内容
-    } else {
-      console.log('生成段落失败');
-    }
-  } catch (error) {
-    console.error('生成段落请求失败:', error);
+// 替换选中的内容为段落美化后的文本
+const replaceWithBeautifiedContent = () => {
+  if (selectedRange.value && beautifiedText.value) {
+    // 替换选中文本为用户编辑后的美化内容
+    quillEditor.value.deleteText(selectedRange.value.index, selectedRange.value.length);
+    quillEditor.value.insertText(selectedRange.value.index, beautifiedText.value);
+    // 关闭弹窗
+    showBeautifiedContent.value = false;
+    selectedRange.value = null;
   }
 };
+
+// 取消操作
+const cancelBeautify = () => {
+  // 隐藏弹窗
+  showBeautifiedContent.value = false;
+  selectedRange.value = null;
+};
+// // 隐藏选中文本操作按钮
+// const hideSelectionButtons = () => {
+//   showSelectionButtons.value = false;
+//   selectedRange.value = null;
+// };
+
+// 生成段落的函数
+const generateParagraph = async () => {
+      try {
+        // 创建 FormData 对象
+        const formDataToSend = new FormData();
+        formDataToSend.append('prompt', formData.value.prompt);  // 添加生成段落的提示语
+        formDataToSend.append('length', formData.value.length.toString());  // 添加段落的长度
+        formDataToSend.append('tone', formData.value.tone);  // 添加写作的语气
+        formDataToSend.append('style', formData.value.style);  // 添加写作风格
+        formDataToSend.append('AI_model', formData.value.AI_model.toString());  // 添加选择的 AI 模型
+
+        // 请求后端生成段落接口
+        const response = await request.post('/ez-note/AI/generate', formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }  // 设置请求头为 multipart/form-data
+        });
+
+        if (response.code === 0) {
+          console.log('生成段落成功', response.data);
+          const generatedContent = response.paragraph; // 假设后端返回的段落内容字段名为 `paragraph`
+
+          // 设置弹窗编辑器的内容
+          popInputContent.value = generatedContent;
+
+          // 显示弹窗
+          showParagraphPopup.value = true;
+          openParagraphPopup();
+        } else {
+          console.log('生成段落失败');
+        }
+      } catch (error) {
+        console.error('生成段落请求失败:', error);
+      }
+    };
+
 
 
 const continueContent = async () => {
@@ -415,7 +523,14 @@ const continueContent = async () => {
 
     if (response.code === 0) {
       console.log('续写内容成功', response.data);
-      formData.value.text = response.data.text;  // 更新文本内容
+      const generatedContent = response.continuation; // 假设后端返回的段落内容字段名为 `paragraph`
+
+      // 设置弹窗编辑器的内容
+      popInputContent.value = generatedContent;
+
+      // 显示弹窗
+      showParagraphPopup.value = true;
+      openParagraphPopup();
     } else {
       console.log('续写内容失败');
     }
@@ -441,7 +556,14 @@ const provideWritingTips = async () => {
 
     if (response.code === 0) {
       console.log('写作提示成功', response.data);
-      formData.value.text = response.data.tips;  // 更新文本内容
+      const generatedContent = response.inspiration; // 假设后端返回的段落内容字段名为 `paragraph`
+
+      // 设置弹窗编辑器的内容
+      popInputContent.value = generatedContent;
+
+      // 显示弹窗
+      showParagraphPopup.value = true;
+      openParagraphPopup();
     } else {
       console.log('写作提示失败');
     }
@@ -467,7 +589,14 @@ const analyzeArticle = async () => {
 
     if (response.code === 0) {
       console.log('文章分析成功', response.data);
-      formData.value.text = response.data.analysis;  // 更新分析后的文本内容
+      const generatedContent = response.analysis||response.correction||response.evaluation; 
+
+      // 设置弹窗编辑器的内容
+      popInputContent.value = generatedContent;
+
+      // 显示弹窗
+      showParagraphPopup.value = true;
+      openParagraphPopup();
     } else {
       console.log('文章分析失败');
     }
@@ -524,10 +653,94 @@ const goBack = () => {
 </script>
 
 <style scoped>
+.popup {
+  position: absolute;  /* 使弹窗可以自由移动 */
+  top: 50px;  /* 设置初始位置 */
+  left: 100px;
+  width: 300px;  /* 设置宽度 */
+  padding: 20px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.popup-content {
+  padding: 10px;
+}
+
+.popup-header {
+  cursor: grab; /* 设置鼠标在标题栏时为抓取状态 */
+}
+
+
+.popcontent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popcontent-textarea {
+  width: 100%;
+  height: 100px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.popcontent-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.popcontent-buttons button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.popcontent-buttons button:first-child {
+  background-color: #4caf50;
+  color: white;
+}
+
+.popcontent-buttons button:last-child {
+  background-color: #f44336;
+  color: white;
+}
+
+.popupbeauty {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 50%; /* 设置宽度为50% */
+  background: white;
+  border: 1px solid #ccc;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  max-width: 800px; /* 最大宽度限制 */
+  cursor: move; /* 鼠标悬停时显示拖动光标 */
+}
+
+.editable-textarea {
+  width: 100%;
+  height: 150px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
 .selection-buttons {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 300px;
+  left: 300px;
   z-index: 9999;
   background-color: rgba(255, 255, 255, 0.8);
   border: 1px solid #ccc;
@@ -539,6 +752,7 @@ const goBack = () => {
   margin-right: 10px;
   padding: 5px 10px;
 }
+
 /* 弹窗内容 */
 .popup-content {
   margin-bottom: 20px;
@@ -643,9 +857,9 @@ const goBack = () => {
 }
 
 #editor-container {
-  width: 70%;
+  width: 60%;
   margin: 0 auto;
-  height: 400px;
+  height: 800px;
   border: 1px solid #ddd;
   border-radius: 4px;
   background-color: #fff;
@@ -697,4 +911,5 @@ const goBack = () => {
 .back-button:hover {
   background-color: #45a049;
 }
+
 </style>
