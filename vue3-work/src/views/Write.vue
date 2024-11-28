@@ -1,168 +1,236 @@
 <template>
-  <div class="note-file-container">
-    <div class="content">
-      <h2>我的文档</h2>
-      
-      <!-- 管理文档按钮 -->
-      <div class="actions">
-        <button @click="createFolder">新建文档</button>
-        <button @click="manageFolder">{{ isManaging ? '确定' : '管理文档' }}</button>
+  <div class="write-container">
+    <!-- 左侧侧边栏 -->
+    <div :class="['sidebar', { collapsed: isCollapsed }]">
+      <div class="sidebar-header">
+        <span>文件夹</span>
+        <button class="toggle-button" @click="toggleSidebar">
+          {{ isCollapsed ? '>' : '<' }}
+        </button>
       </div>
-
-      <!-- 文档列表 -->
-      <div class="folder-list">
-        <div v-for="folder in folders" :key="folder.id" class="folder-item">
-          <h3 @click="editDocument(folder.id)">{{ folder.name }}</h3> <!-- 点击标题进入编辑页面 -->
-          <div v-show="isManaging" class="note-actions">
-            <button @click.stop="renameFolder(folder)">编辑标题</button>
-            <button @click.stop="deleteFolder(folder)">删除</button>
+      <ul class="folder-list">
+        <!-- 只显示默认文件夹 -->
+        <li v-if="defaultFolder" :key="defaultFolder.id" class="folder-item">
+          <div class="folder-header">
+            <span
+              class="folder-toggle"
+              @click="toggleFolder(defaultFolder.id)"
+            >
+              {{ expandedFolders.includes(defaultFolder.id) ? '|' : '>' }}
+            </span>
+            <span class="folder-name">{{ defaultFolder.name }}</span>
+            <button
+              class="add-doc-button"
+              @click.stop="createDocument(defaultFolder.id)"
+            >
+              +
+            </button>
           </div>
-        </div>
-      </div>
+          <!-- 文档列表 -->
+          <ul
+            v-if="expandedFolders.includes(defaultFolder.id)"
+            class="document-list"
+          >
+            <li
+              v-for="doc in documents"
+              :key="doc.id"
+              class="document-item"
+              @click="editDocument(doc.id)"
+            >
+              {{ doc.title }}
+            </li>
+          </ul>
+        </li>
+        <!-- 如果没有加载完数据，显示加载中 -->
+        <li v-else>
+          <p>加载中...</p>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 右侧内容区域 -->
+    <div class="content-area">
+      <h2 v-if="defaultFolder">当前文件夹: {{ defaultFolder.name }}</h2>
+      <p v-else>请选择一个文件夹以显示文档</p>
+      <router-view></router-view> <!-- 动态加载右侧内容 -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
+import request from '@/utils/request'; // 引入 request.ts 中的 axios 实例
 import { useRouter } from 'vue-router';
 
-import type { Notefiles } from '@/types/api/getNotefiles';
-
+// 状态变量
+const defaultFolder = ref(null); // 存储默认文件夹
+const documents = ref([]); // 存储文档列表
+const expandedFolders = ref<number[]>([]); // 存储展开的文件夹 ID
+const isCollapsed = ref(false);
 const router = useRouter();
-const folders = ref<Notefiles[]>([]);
-const isManaging = ref(false);
+
+// 获取默认文件夹及其文档
+const fetchDefaultFolderAndDocuments = async () => {
+  try {
+    const folderResponse = await request.get('/ez-note/folder/get-all');
+    if (folderResponse.code === 0) {
+      const folder = folderResponse.data.find(f => f.name === '写作助手');
+      if (folder) {
+        defaultFolder.value = folder;
+        await fetchDocumentsInDefaultFolder(folder.id); // 获取该文件夹下的文档
+      } else {
+        // 如果没有找到“写作助手”文件夹，创建它
+        const createResponse = await request.post('/ez-note/folder/create', {
+          name: '写作助手',
+        });
+        if (createResponse.code === 0) {
+          defaultFolder.value = createResponse.data;
+          await fetchDocumentsInDefaultFolder(createResponse.data.id); // 获取新创建文件夹的文档
+        }
+      }
+    }
+  } catch (error) {
+    console.error('获取默认文件夹失败:', error);
+  }
+};
 
 // 获取文档列表
-const getFolders = async () => {
+const fetchDocumentsInDefaultFolder = async (folderId: number) => {
   try {
-    const response = await request.get('/ez-note/folder/get-all');
+    const response = await request.get('/ez-note/note/query-all', {
+      params: { folder_id: folderId },
+    });
     if (response.code === 0) {
-      folders.value = response.data;
+      documents.value = response.data;
     } else {
       alert(response.msg);
     }
   } catch (error) {
-    console.error('获取文档列表失败:', error);
-    alert('请求失败，请稍后重试');
+    console.error('获取文档失败:', error);
   }
 };
 
-// 点击进入编辑页面
-const editDocument = (folderId: number) => {
-  router.push({ name: 'writeEdit', params: { id: folderId } });
-};
-
-// 新建文件夹
-const createFolder = async () => {
-  const newFolderName = prompt('请输入文件夹名称');
-  if (newFolderName) {
-    try {
-      const response = await request.post('/ez-note/folder/create', { name: newFolderName });
-      if (response.code === 0) {
-        folders.value.push(response.data);
-      } else {
-        alert(response.msg);
-      }
-    } catch (error) {
-      alert('创建文件夹失败，请稍后重试');
-    }
+// 切换文件夹的展开/收起状态
+const toggleFolder = (folderId: number) => {
+  const index = expandedFolders.value.indexOf(folderId);
+  if (index > -1) {
+    expandedFolders.value.splice(index, 1);
+  } else {
+    expandedFolders.value.push(folderId);
   }
 };
 
-// 切换管理模式
-const manageFolder = () => {
-  isManaging.value = !isManaging.value;
+// 创建新文档，跳转到编辑页面
+const createDocument = (folderId: number) => {
+  const defaultDocName = '无标题';
+  router.push({
+    name: 'writeEdit',
+    query: {
+      folder_id: folderId,
+      docName: defaultDocName,
+      isNew: 1, // 新建文档标识
+    },
+  });
 };
 
-// 重命名文件夹
-const renameFolder = (folder: Notefiles) => {
-  const newName = prompt('请输入新的文件夹名称', folder.name);
-  if (newName && newName !== folder.name) {
-    request.put('/ez-note/folder/rename', { id: folder.id, name: newName })
-      .then(response => {
-        if (response.code === 0) {
-          folder.name = newName;
-        } else {
-          alert(response.msg);
-        }
-      })
-      .catch(err => {
-        console.error('重命名失败', err);
-        alert('重命名失败，请稍后重试');
-      });
-  }
+// 编辑文档
+const editDocument = (docId: number) => {
+  router.push({
+    name: 'writeEdit',
+    params: { id: docId }, // 使用路由参数传递文档 ID
+    query: {
+      isNew: 0, // 编辑已有文档标识
+    },
+  });
 };
 
-// 删除文件夹
-const deleteFolder = (folder: Notefiles) => {
-  if (confirm(`确定要删除文件夹 "${folder.name}" 吗？`)) {
-    request.post('/ez-note/folder/delete', { folder_id: folder.id })
-      .then(response => {
-        if (response.code === 0) {
-          folders.value = folders.value.filter(f => f.id !== folder.id);
-        } else {
-          alert(response.msg);
-        }
-      })
-      .catch(err => {
-        console.error('删除失败', err);
-        alert('删除失败，请稍后重试');
-      });
-  }
+
+// 切换侧边栏收起状态
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value;
 };
 
-onMounted(() => {
-  getFolders();  // 获取文档列表
-});
+// 初始化
+onMounted(fetchDefaultFolderAndDocuments);
 </script>
 
+
 <style scoped>
-.note-file-container {
-  padding: 20px;
-}
-.content {
-  max-width: 800px;
-  margin: 0 auto;
-}
-h2 {
-  text-align: center;
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-.actions {
+.write-container {
   display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 20%;
+  background-color: #f7f7f7;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 5%;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-.folder-list {
-  margin-top: 20px;
-}
-.folder-item {
-  background: #f7f7f7;
   padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 4px;
+  border-bottom: 1px solid #ddd;
 }
-.folder-item h3 {
-  margin: 0;
-  cursor: pointer;
-}
-.note-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-button {
-  padding: 8px 16px;
+
+.add-doc-button,
+.toggle-button {
   border: none;
-  border-radius: 4px;
+  background-color: #5c6bc0;
+  color: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  text-align: center;
+  line-height: 24px;
   cursor: pointer;
-  background-color: #5C6BC0;
-  color: white;
 }
-button:hover {
-  background-color: #3949AB;
+
+.folder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.folder-item {
+  padding: 10px;
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.folder-toggle {
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.folder-name {
+  cursor: pointer;
+  flex-grow: 1;
+}
+
+.document-list {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+}
+
+.document-item {
+  cursor: pointer;
+  padding: 5px 0;
+}
+
+.content-area {
+  flex-grow: 1;
+  padding: 20px;
 }
 </style>

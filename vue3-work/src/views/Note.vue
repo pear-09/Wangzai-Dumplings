@@ -135,6 +135,7 @@ const closeDeleteModal = () => {
   <div class="note-list-container">
     <h1 class="page-title">{{ currentFolder?.name || '我的笔记' }}</h1>
     <div class="action-buttons">
+      <button class="view-button" >导入文件</button>
       <button class="view-button" @click="showNewNoteModal">新建笔记</button>
       <button class="view-button manage-button" @click="toggleManaging">
         {{ isManaging ? '确定' : '管理笔记' }}
