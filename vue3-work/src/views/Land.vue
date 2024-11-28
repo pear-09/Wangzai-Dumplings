@@ -141,6 +141,7 @@ const goToRegister = () => {
   </div>
 </template>
 
+
 <style scoped>
 .home-container {
   padding: 30px;
