@@ -6,160 +6,200 @@
     </div>
     <!-- 日程部分 -->
     <div class="schedule-right">
-      <div class="header">
-        <h3>{{ selectedDate }} 日程</h3>
-        <button class="add-btn" @click="openCreateEventModal">+</button>
-      </div>
-      <div v-for="event in selectedEvents" :key="event.id" class="event-item"
-           :class="{ 'completed': event.status === '完成', 'pending': event.status === '未完成' }">
-        <div class="event-box">
-          <div class="event-title">{{ event.title }}</div>
-          <!-- <div class="event-time">{{ event.time }}</div> -->
-          <div class="status-box-container">
-            <div class="status-box"
-                 :class="{
-                   complete: event.status === '完成',
-                   pending: event.status === '未完成'
-                 }"
-                 @click="toggleStatus(event)">
-              <span v-if="event.status === '完成'">√</span>
-              <span v-if="event.status === '未完成'">-</span>
-            </div>
-          </div>
+  <div class="header">
+    <h3>{{ selectedDate }} 日程</h3>
+    <button class="add-btn" @click="openCreateEventModal">+</button>
+  </div>
+
+  <!-- 背景图片 -->
+  <div v-if="selectedEvents.length === 0" class="no-events">
+    <img src="@/assets/no-events.png" alt="无日程" />
+    <p>今天没有日程，休息一下吧！</p>
+  </div>
+
+  <!-- 日程列表 -->
+  <div
+    v-for="event in selectedEvents"
+    :key="event.id"
+    class="event-item"
+    :class="{ complete: event.status === '完成', pending: event.status === '未完成' }"
+  >
+    <div class="event-box">
+      <div class="event-title">{{ event.title }}</div>
+      <div class="status-box-container">
+        <div
+          class="status-box"
+          :class="{
+            complete: event.status === '完成',
+            pending: event.status === '未完成',
+          }"
+          @click="toggleStatus(event)"
+        >
+          <span v-if="event.status === '完成'">√</span>
+          <span v-if="event.status === '未完成'">-</span>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- 弹窗表单 -->
     <Modal v-model="modalVisible" title="日程管理" @confirm="handleFormSubmit">
-      <div class="modal-form">
-        <div>
-          <label>标题：</label>
-          <input v-model="currentEvent.title" required />
-        </div>
-        <div>
-          <label>描述：</label>
-          <textarea v-model="currentEvent.description"></textarea>
-        </div>
-        <div>
-          <label>时间：</label>
-          <input type="datetime-local" v-model="currentEvent.time" required />
-        </div>
-        <div>
-          <label>状态：</label>
-          <button v-if="currentEvent.status === '未完成'" @click="toggleStatus(currentEvent)">完成</button>
-          <button v-else @click="toggleStatus(currentEvent)">未完成</button>
-        </div>
-        <div v-if="currentEvent.id">
-          <button @click="deleteEvent">删除</button>
-        </div>
+  <form class="modal-form" @submit.prevent="handleFormSubmit">
+    <!-- 标题输入 -->
+    <div class="form-group">
+      <label for="title">标题：</label>
+      <input
+        id="title"
+        type="text"
+        v-model="currentEvent.title"
+        placeholder="请输入标题"
+        required
+      />
+    </div>
+
+    <!-- 描述输入 -->
+    <div class="form-group">
+      <label for="description">描述：</label>
+      <textarea
+        id="description"
+        v-model="currentEvent.description"
+        placeholder="请输入描述"
+      ></textarea>
+    </div>
+
+    <!-- 时间输入 -->
+    <div class="form-group">
+      <label for="time">时间：</label>
+      <input
+        id="time"
+        type="datetime-local"
+        v-model="currentEvent.time"
+        required
+      />
+    </div>
+
+    <!-- 状态切换按钮 -->
+    <div class="form-group">
+      <label>状态：</label>
+      <div class="status-buttons">
+        <button
+          type="button"
+          class="status-btn"
+          :class="{ active: currentEvent.status === '完成' }"
+          @click="toggleStatus(currentEvent)"
+        >
+          完成
+        </button>
+        <button
+          type="button"
+          class="status-btn"
+          :class="{ active: currentEvent.status === '未完成' }"
+          @click="toggleStatus(currentEvent)"
+        >
+          未完成
+        </button>
       </div>
-    </Modal>
+    </div>
+
+    <!-- 删除按钮 -->
+    <div class="form-actions" v-if="currentEvent.id">
+      <button
+        type="button"
+        class="delete-btn"
+        @click="deleteEvent"
+      >
+        删除
+      </button>
+    </div>
+
+    <!-- 确定按钮 -->
+    <div class="form-actions">
+      <button type="submit" class="confirm-btn">保存</button>
+    </div>
+  </form>
+</Modal>
+
   </div>
 </template>
-
 <script lang="ts">
 import { defineComponent, onMounted, ref } from "vue";
 import { Calendar } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { DateClickArg } from "@fullcalendar/interaction";
-import request from "@/utils/request"; // 自定义的请求实例
+import request from "@/utils/request";
 import Modal from "@/components/Modal.vue";
-import { TaskData } from "@/types/api/UpdateTask.d.ts"; 
 
 export default defineComponent({
   name: "ScheduleView",
   components: { Modal },
   setup() {
     const modalVisible = ref(false);
-    const currentEvent = ref<{
-      id: string | null | undefined;
-      title: string;
-      description: string;
-      time: string;
-      status: string;
-    }>({
+    const currentEvent = ref({
       id: null,
       title: "",
       description: "",
       time: "",
-      status: "未完成", // 默认状态为未完成
+      status: "未完成",
     });
-
     const calendar = ref<Calendar | null>(null);
-    const events = ref<EventInput[]>([]); // 所有日程
-    const selectedDate = ref<string>(''); // 当前选中的日期
-    const selectedEvents = ref<any[]>([]); // 当前选中日期的日程
+    const events = ref([]);
+    const selectedDate = ref("");
+    const selectedEvents = ref([]);
 
-    // 获取所有日程（用于日历）
     const fetchEvents = async () => {
       try {
         const response = await request.get("/ez-note/date/get-all");
         if (response.code === 0) {
-          events.value = response.data.map((event: TaskData) => ({
+          events.value = response.data.map((event) => ({
             id: event.id.toString(),
             title: event.title,
-            start: event.time.split("T")[0], // 提取日期部分
-            backgroundColor: event.status === "完成" ? "lightblue" : "darkblue",
-            extendedProps: {
-              status: event.status,
-            },
+            start: event.time.split("T")[0],
+            backgroundColor: event.status === "完成" ? "lightgray" : "white",
+            extendedProps: { status: event.status },
           }));
-
-          // 获取今天的日期，并更新选中的日期及日程
-          const today = new Date().toISOString().split("T")[0]; 
-          selectedDate.value = today;
-          selectedEvents.value = events.value.filter((event) => event.start === today);
+          updateSelectedEvents(selectedDate.value || new Date().toISOString().split("T")[0]);
+          refetchCalendarEvents();
         }
       } catch (error) {
         console.error("Error fetching events:", error);
       }
     };
 
-    // 获取选中日期的日程（用于右侧日程栏）
-    const fetchSelectedDayEvents = async (date: string) => {
-      try {
-        const response = await request.get(`/ez-note/date/get?time=${date}`);
-        if (response.code === 0) {
-          selectedEvents.value = response.data.map((event: TaskData) => ({
-            id: event.id.toString(),
-            title: event.title,
-            time: event.time,
-            status: event.status,
-          }));
-        }
-      } catch (error) {
-        console.error("Error fetching selected date events:", error);
+    const updateSelectedEvents = (date) => {
+      selectedDate.value = date;
+      selectedEvents.value = events.value.filter((event) => event.start === date);
+    };
+
+    const refetchCalendarEvents = () => {
+      if (calendar.value) {
+        calendar.value.removeAllEvents();
+        calendar.value.addEventSource(events.value);
+        calendar.value.render();
       }
     };
 
-    // 初始化日历
     const initializeCalendar = async () => {
-      await fetchEvents(); // 获取所有事件
+      await fetchEvents();
       const calendarEl = document.getElementById("calendar");
-
       if (calendarEl) {
         calendar.value = new Calendar(calendarEl, {
           plugins: [dayGridPlugin, interactionPlugin],
           initialView: "dayGridMonth",
+          height: "100%", /* 日历高度填充容器 */
           events: events.value,
-          dateClick(info: DateClickArg) {
-            selectedDate.value = info.dateStr; // 设置选中的日期
-            fetchSelectedDayEvents(info.dateStr); // 获取并显示选中日期的事件
+          dateClick(info) {
+            updateSelectedEvents(info.dateStr);
           },
         });
-
         calendar.value.render();
-      } else {
-        console.error("Calendar element not found");
       }
     };
 
-    // 提交表单（新增或更新日程）
     const handleFormSubmit = async () => {
       try {
         if (currentEvent.value.id) {
+          // 更新日程
           await request.post("/ez-note/date/modify", {
             date_id: Number(currentEvent.value.id),
             title: currentEvent.value.title,
@@ -167,6 +207,7 @@ export default defineComponent({
             time: currentEvent.value.time,
           });
         } else {
+          // 新增日程
           await request.post("/ez-note/date/create", {
             title: currentEvent.value.title,
             description: currentEvent.value.description,
@@ -174,84 +215,53 @@ export default defineComponent({
           });
         }
         modalVisible.value = false;
-        await fetchEvents(); // 更新所有日程
-        fetchSelectedDayEvents(selectedDate.value); // 更新右侧显示的日程
+        await fetchEvents(); // 刷新事件数据
       } catch (error) {
         console.error("Error saving event:", error);
       }
     };
 
-    // 切换日程状态
-    const toggleStatus = async (event: any) => {
+    const toggleStatus = async (event) => {
       try {
-        const newStatus = event.status === '完成' ? '未完成' : '完成';
-        // 更新事件状态到后端
+        const newStatus = event.status === "完成" ? "未完成" : "完成";
         await request.post("/ez-note/date/status", {
           date_id: Number(event.id),
           status: newStatus,
         });
-
-        // 更新本地状态
         event.status = newStatus;
-        event.backgroundColor = newStatus === '完成' ? 'lightblue' : 'darkblue';
-        event.extendedProps.status = newStatus;
-
-        // 同步更新右侧的事件列表
-        selectedEvents.value = selectedEvents.value.map((e) => 
-          e.id === event.id ? { ...e, status: newStatus, backgroundColor: event.backgroundColor } : e
-        );
-
-        // 刷新日历事件
-        if (calendar.value) {
-          calendar.value.refetchEvents(); // 刷新日历上的事件
-        }
+        updateSelectedEvents(selectedDate.value);
+        refetchCalendarEvents(); // 更新日历视图
       } catch (error) {
         console.error("Error updating status:", error);
       }
     };
 
-    // 删除事件
     const deleteEvent = async () => {
       if (currentEvent.value.id) {
         try {
-          await request.post('/ez-note/date/delete', {
-            date_id: currentEvent.value.id
+          await request.post("/ez-note/date/delete", {
+            date_id: currentEvent.value.id,
           });
           modalVisible.value = false;
-          await fetchEvents(); // 更新所有日程
-          fetchSelectedDayEvents(selectedDate.value); // 更新右侧显示的日程
+          await fetchEvents(); // 刷新事件数据
         } catch (error) {
           console.error("Error deleting event:", error);
         }
       }
     };
 
-    // 打开创建日程弹窗
     const openCreateEventModal = () => {
-      currentEvent.value = {
-        id: null,
-        title: '',
-        description: '',
-        time: '',
-        status: '未完成',
-      };
+      currentEvent.value = { id: null, title: "", description: "", time: "", status: "未完成" };
       modalVisible.value = true;
     };
 
-    onMounted(() => {
-      initializeCalendar(); // 初始化日历
-      // 获取今天的日期，并传递给 fetchSelectedDayEvents
-  const today = new Date().toISOString().split("T")[0]; // 获取今天的日期（yyyy-mm-dd）
-  fetchSelectedDayEvents(today); // 自动触发，传递当天日期
-    });
+    onMounted(() => initializeCalendar());
 
     return {
       modalVisible,
       currentEvent,
       selectedDate,
       selectedEvents,
-      fetchEvents,
-      fetchSelectedDayEvents,
       handleFormSubmit,
       toggleStatus,
       deleteEvent,
@@ -261,114 +271,182 @@ export default defineComponent({
 });
 </script>
 
-
 <style scoped>
 .schedule-container {
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  justify-content: space-between;
+  padding: 10px;
+  height: 88vh; /* 整个容器适配屏幕高度 */
+  box-sizing: border-box; /* 包含内边距 */
+  overflow: hidden; /* 避免内部溢出 */
 }
 
 .calendar-left {
-  width: 70%;
+  width: 60%;
+  height: 100%; /* 高度继承父容器 */
+  overflow: auto; /* 如果内容超出，启用滚动条 */
 }
 
 .schedule-right {
-  width: 30%;
+  width: 35%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 3px solid #9cc47c;
   border-radius: 4px;
-  position: relative;
+  background-color: #ffffff;
+  height: 95%; /* 高度继承父容器 */
+  overflow-y: auto; /* 启用垂直滚动条，防止溢出 */
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+
+.no-events {
+  text-align: center;
+  padding: 20px;
 }
 
-.add-btn {
-  font-size: 24px;
-  background-color: #ff6347;
-  color: white;
-  border: none;
-  padding: 10px;
-  border-radius: 50%;
-  cursor: pointer;
+.no-events img {
+  width: 50%;
+  margin-bottom: 10px;
 }
 
-.add-btn:hover {
-  background-color: #ff4500;
-}
-
-.event-item {
-  
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.no-events p {
+  color: #abdaf1;
 }
 
 .event-item.complete {
-  background-color: #d3d3d3; /* 灰色背景 */
-  color: #707070; /* 深灰色字体 */
+  background-color: #d3d3d3;
+  color: #505050;
 }
 
 .event-item.pending {
-  background-color: #fff; /* 白色背景 */
-  color: #000; /* 默认字体颜色 */
-}
-
-.status-box {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #4caf50;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: white;
-  cursor: pointer;
+  background-color: #fff;
 }
 
 .status-box.complete {
-  background-color: #4caf50; /* 绿色背景 */
+  background-color: #4caf50;
+  color: white;
 }
 
-.status-box.pending {
-  background-color: #fff; /* 白色背景 */
-  border: 2px solid #ddd; /* 灰色边框 */
-}
-
-.status-box-container {
+.add-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  background: linear-gradient(135deg, #ff7f50, #ff6347);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+  transform: scale(1.1); /* 悬停放大 */
+  background: linear-gradient(135deg, #ff6347, #ff4500); /* 渐变颜色变深 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.add-btn:active {
+  transform: scale(0.95); /* 点击时稍微缩小 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .modal-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
 }
 
 .modal-form input,
 .modal-form textarea {
-  width: 100%;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px;
+  font-size: 16px;
   border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.modal-form button {
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
+.modal-form input:focus,
+.modal-form textarea:focus {
+  border-color: #7bd389;
+  box-shadow: 0 0 6px rgba(123, 211, 137, 0.5);
+  outline: none;
+}
+
+.modal-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.status-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.status-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f0f0f0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.status-btn.active {
+  background-color: #7bd389;
+  color: white;
+  border-color: #7bd389;
+}
+
+.status-btn:hover {
+  background-color: #e0f7ea;
+}
+
+.delete-btn {
   background-color: #ff6347;
   color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
-.modal-form button:hover {
+.delete-btn:hover {
   background-color: #ff4500;
 }
+
+.confirm-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.confirm-btn:hover {
+  background-color: #45a049;
+}
+
+
 </style>
