@@ -1,21 +1,16 @@
 <template>
-  <!-- 将 v-if="visible" 移动到这里 -->
-  <div class="modal-overlay" v-if="visible" @click.self="closeModal">
+  <div class="modal-overlay" v-if="visible">
     <transition name="modal-fade">
       <div class="modal-content" v-if="visible">
         <!-- 标题区域 -->
         <div class="modal-header">
           <h2>{{ title }}</h2>
-          <button class="close-button" @click="closeModal">&times;</button>
+          <!-- 可以选择是否显示关闭按钮 -->
+          <button v-if="showClose" class="close-button" @click="closeModal">&times;</button>
         </div>
         <!-- 内容区域 -->
         <div class="modal-body">
           <slot></slot>
-        </div>
-        <!-- 按钮区域 -->
-        <div class="modal-footer">
-          <button class="confirm-button" @click="handleConfirm">确定</button>
-          <button class="cancel-button" @click="closeModal">取消</button>
         </div>
       </div>
     </transition>
@@ -36,8 +31,18 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    // 添加是否显示关闭按钮的属性
+    showClose: {
+      type: Boolean,
+      default: false,
+    },
+    // 添加是否允许点击遮罩关闭的属性
+    maskClosable: {
+      type: Boolean,
+      default: false,
+    }
   },
-  emits: ['close', 'update:modelValue', 'confirm'],
+  emits: ['close', 'update:modelValue'],
   setup(props, { emit }) {
     const visible = ref(props.modelValue);
 
@@ -49,20 +54,17 @@ export default defineComponent({
     );
 
     const closeModal = () => {
-      visible.value = false;
-      emit('close');
-      emit('update:modelValue', false);
-    };
-
-    const handleConfirm = () => {
-      emit('confirm');
-      closeModal();
+      // 只有当允许关闭时才执行关闭操作
+      if (props.maskClosable || props.showClose) {
+        visible.value = false;
+        emit('close');
+        emit('update:modelValue', false);
+      }
     };
 
     return {
       visible,
       closeModal,
-      handleConfirm,
     };
   },
 });
@@ -76,7 +78,7 @@ export default defineComponent({
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.3); /* 轻盈的遮罩 */
+  background-color: rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -85,13 +87,13 @@ export default defineComponent({
 
 /* 模态框内容 */
 .modal-content {
-  background-color: #ffffff; /* 白色背景 */
+  background-color: #ffffff;
   padding: 20px;
   border-radius: 10px;
   position: relative;
   max-width: 500px;
   width: 90%;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* 轻盈的阴影 */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 }
@@ -107,7 +109,7 @@ export default defineComponent({
 .modal-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #2f4f4f; /* 深灰绿色 */
+  color: #2f4f4f;
 }
 
 /* 关闭按钮 */
@@ -116,46 +118,17 @@ export default defineComponent({
   background: none;
   font-size: 24px;
   cursor: pointer;
-  color: #2f4f4f; /* 深灰绿色 */
+  color: #2f4f4f;
+  transition: color 0.3s ease;
+}
+
+.close-button:hover {
+  color: #ff4d4f;
 }
 
 /* 内容区域 */
 .modal-body {
   flex-grow: 1;
-  margin-bottom: 20px;
-}
-
-/* 按钮区域 */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.confirm-button {
-  padding: 10px 20px;
-  background-color: #7bd389; /* 清新的绿色 */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
-.confirm-button:hover {
-  background-color: #6ccf7d;
-}
-
-.cancel-button {
-  padding: 10px 20px;
-  background-color: #c0c0c0; /* 灰色取消按钮 */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.cancel-button:hover {
-  background-color: #a9a9a9;
 }
 
 /* 过渡动画 */
@@ -182,7 +155,7 @@ export default defineComponent({
 .modal-body label {
   font-weight: bold;
   margin-bottom: 5px;
-  color: #2f4f4f; /* 深灰绿色 */
+  color: #2f4f4f;
 }
 
 .modal-body input,
@@ -191,13 +164,13 @@ export default defineComponent({
   border: 1px solid #dcdcdc;
   border-radius: 5px;
   font-size: 16px;
-  background-color: #f8f8f8; /* 浅灰色背景 */
+  background-color: #f8f8f8;
   color: #333;
 }
 
 .modal-body input:focus,
 .modal-body textarea:focus {
   outline: none;
-  border-color: #7bd389; /* 焦点时的绿色边框 */
+  border-color: #7bd389;
 }
 </style>
