@@ -11,6 +11,8 @@ pwd # /Wangzai-Dumplings/backend
 
 使用pip包管理器安装项目依赖
 ```bash
+pip install pipreqs # 按照pipreqs工具
+pipreqs . --force # 重新生成并覆盖依赖(requirement.txt)
 pip intsall -r requirement.txt
 ```
 
