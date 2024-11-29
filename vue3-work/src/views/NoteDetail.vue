@@ -77,15 +77,40 @@ const replaceText = () => {
   }
 };
 
-//点击定制日程触发的函数
-const sendToschedule = () =>{
-    if(studyPlan.value){
-      //给日程组件Schedule.vue 传递数据：studyPlan.value
-      backendDataStore.setBackendData(studyPlan.value);  // 更新 Pinia store 数据
-    }else{
-      alert("还没有生成复习计划哦！");
+// 点击定制日程触发的函数
+const sendToschedule = async () => {
+  if (studyPlan.value) {
+    // 获取当前日期
+    const currentDate = new Date();
+    const startDate = currentDate.toISOString().split('T')[0]; // 格式化为 yyyy-mm-dd
+
+    // 转换 studyPlan 为后端需要的格式
+    const formattedPlan = {
+      startday: startDate,
+      // plan: JSON.parse(studyPlan.value) // 将存储的字符串转为对象
+      plan: studyPlan.value , // 保持 plan 的内容不变
+    };
+
+    // 发送转换后的数据给后端
+    try {
+      const response = await request.post('/ez-note/date/generate', formattedPlan, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.code === 0) {
+        alert('复习计划提交成功');
+      } else {
+        alert('提交失败，请稍后重试');
+      }
+    } catch (error) {
+      console.error('提交失败:', error);
+      alert('提交失败，请稍后重试');
     }
-}
+  } else {
+    alert('还没有生成复习计划哦！');
+  }
+};
+
 
 // 弹窗显示状态
 const showStudyPlanDialog = ref(false);

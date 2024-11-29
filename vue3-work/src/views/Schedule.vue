@@ -1,9 +1,5 @@
 <template>
-   <button @click="submitPlanToBackend">生成复习计划</button>
-  <div class="schedule-container">
-    <!-- 显示 backendData -->
-    <!-- <p>Backend Data: {{ backendData }}</p> -->
-    
+  <div class="schedule-container">    
     <!-- 日历部分 -->
     <div class="calendar-left">
       <div id="calendar"></div>
