@@ -120,14 +120,14 @@
     </div>
   </div>
   <div>
-    <div v-if="showBeautifiedContent" class="popupbeauty">
+    <div v-if="showBeautifiedContent" class="popupbeauty" @click.stop>
       <textarea v-model="beautifiedText" class="editable-textarea"></textarea>
       <button class="button2"@click="replaceWithBeautifiedContent">插入</button>
       <button class="button2"@click="cancelBeautify">取消</button>
     </div>
   </div>
 
-  <div v-if="showPopupcontent" class="popcontent">
+  <div v-if="showPopupcontent" class="popcontent" @click.stop>
     <div class="popcontent-body">
       <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
       <div class="popcontent-buttons">
@@ -356,15 +356,18 @@ addFeatureButton('🔍', '文章分析', () => handleFeatureChange('文章分析
   if (!isNew && docId) {
     await fetchDocumentContent();
   }
-
+  console.log('showpopup:', showPopup.value);
   // 设置定时自动保存，每3秒保存一次
-  saveInterval = setInterval(saveNote, 300000);
+  // saveInterval = setInterval(saveNote, 30000);
+
   quillEditor.value.on('selection-change', function (range) {
+    if (!showPopup.value) {
+      return; // showPopup 为 false 时直接返回，不执行任何逻辑
+    }
+
     if (range && range.length > 0) {
-      // 文本被选中，显示操作按钮
       showTextSelectionOptions(range);
     } else {
-      // 没有文本被选中，隐藏按钮
       hideTextSelectionOptions();
     }
   });
@@ -433,6 +436,7 @@ const handleSelectionChoice = (isAccepted) => {
     // 获取选中的文本内容
     const selectedText = quillEditor.value.getText(selectedRange.value.index, selectedRange.value.length);
     formData.value.text = selectedText; // 将选中的文本存储在 text 中
+    formData.value.prompt = selectedText;
   }
   hideTextSelectionOptions(); // 隐藏按钮
 };
@@ -647,11 +651,10 @@ const provideWritingTips = async () => {
 
     if (response.code === 0) {
       console.log('写作提示成功', response.data);
-      const generatedContent = response.inspiration; // 假设后端返回的段落内容字段名为 `paragraph`
+      const generatedContent = response.inspiration||response.outline||response.title||response.character_bio||response.scene_description||response.dialogue||response.setting||response.synopsis; // 假设后端返回的段落内容字段名为 `paragraph`
 
       // 设置弹窗编辑器的内容
       popInputContent.value = generatedContent;
-
       // 显示弹窗
       showParagraphPopup.value = true;
       openParagraphPopup();
@@ -1114,7 +1117,7 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #fff;
+  background-color: none;
   padding: 10px 20px;
   box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
 }
