@@ -274,9 +274,12 @@ def update_note_tag_view(request):
         note_id = request.POST.get('note_id')  # 获取笔记 ID
         tag_names = request.POST.getlist('tag')  # 获取标签名称列表（多个标签）
 
-        # 验证必要参数
-        if not note_id or not tag_names:
-            return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id 和 tag"})
+        # # 验证必要参数
+        # if not note_id or not tag_names:
+        #     return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id 和 tag"})
+                # 验证必要参数
+        if not note_id:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 note_id"})
 
         # 查询指定的笔记
         try:
