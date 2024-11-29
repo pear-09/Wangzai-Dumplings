@@ -1,5 +1,9 @@
 <template>
+   <button @click="submitPlanToBackend">生成复习计划</button>
   <div class="schedule-container">
+    <!-- 显示 backendData -->
+    <!-- <p>Backend Data: {{ backendData }}</p> -->
+    
     <!-- 日历部分 -->
     <div class="calendar-left">
       <div id="calendar"></div>
@@ -134,7 +138,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import request from '@/utils/request'
 import Modal from '@/components/Modal.vue'
-
+import { useBackendDataStore } from '../stores/backendDataStore'; // 引入 Pinia store
 // 响应式状态
 const modalVisible = ref(false)
 const currentEvent = ref({
