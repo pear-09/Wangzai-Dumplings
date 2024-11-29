@@ -184,7 +184,7 @@ const formData = ref<{
   AI_model: number;  // 显式定义为 number 类型
 }>({
   text: '',
-  length: 0,
+  length: 300,
   prompt: '',
   tone: '',
   style: '',
@@ -1037,7 +1037,6 @@ input:focus {
   background: rgba(255, 255, 255, 0.8); /* 聚焦时的背景色 */
 }
 
-
 /* popup 样式 */
 .popup {
   position: absolute;  /* 可改为 fixed 保持位置固定 */
@@ -1048,8 +1047,8 @@ input:focus {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* 轻微阴影效果 */
   padding: 20px; /* 增加内边距 */
   box-sizing: border-box; /* 包括内边距和边框 */
-  left: 50%; /* 居中对齐 */
-  top: 500px; /* 可以根据需要调整 */
+  left: 90%; /* 居中对齐 */
+  top: 40%; /* 距离页面顶部25% */ /* 可以根据需要调整 */
   transform: translateX(-50%); /* 水平居中 */
   display: flex;
   justify-content: center;
