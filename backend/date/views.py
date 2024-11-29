@@ -1,3 +1,4 @@
+from django.forms import model_to_dict
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -356,30 +357,42 @@ def generate_view(request):
             plan_data = form.cleaned_data['plan']
 
             # 在这里进行日程生成并存储到数据库的操作
+            date_list = []
             for plan in plan_data:
                 day_offset = plan['day']
-                content = plan['content']
+                contents = plan['content']
+                titles = plan['title']  # content 是一个字符串数组，title 是对应的标题数组
+
                 # 正确计算日期
-                time = startday + datetime.timedelta(days=day_offset)
-                starttime = time
-                endtime = time
-                date_id = Date.get_next_id()
-                new_date = Date(
-                    id=date_id,
-                    user_id=user_id,
-                    title=content,
-                    description=content,
-                    time=time,
-                    starttime=starttime,
-                    endtime=endtime,
-                    status='未完成'
-                )
-                new_date.save()
+                time = startday + datetime.timedelta(days=day_offset - 1)
+
+                # 遍历 content 和 title 数组中的每一项，确保每个内容项都有对应的标题项
+                for content, title in zip(contents, titles):  # 使用 zip 来一一配对 content 和 title
+                    date_id = Date.get_next_id()  # 获取下一个可用 ID
+
+                    # 创建新的日程对象
+                    new_date = Date(
+                        id=date_id,
+                        user_id=user_id,
+                        title=title,  # 精简描述
+                        description=content,  # 使用内容作为描述
+                        time=time,  # 日期
+                        starttime=time,  # 起始时间
+                        endtime=time,  # 结束时间（可根据需求调整）
+                        status='未完成'  # 初始状态
+                    )
+
+                    # 保存到数据库
+                    new_date.save()
+                    new_date_dict = model_to_dict(new_date)
+                    date_list.append(new_date_dict)
 
             return JsonResponse({
                 "code": 0,
-                "msg": "日程生成并存储成功"
+                "msg": "日程生成并存储成功",
+                "data": date_list
             })
+
         except json.JSONDecodeError as e:
             return JsonResponse({"code": 1, "msg": f"JSON解析错误: {str(e)}"}, status=400)
         except Exception as e:
