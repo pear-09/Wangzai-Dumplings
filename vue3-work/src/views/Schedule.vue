@@ -189,13 +189,20 @@ const formatEventTime = (time: string) => {
 // 打开编辑模态框
 const openEditEventModal = (event) => {
   showErrors.value = false // 重置错误显示状态
-  // 将时间转换为本地时间格式
+  
+  // 创建一个新的日期对象
   const eventDate = new Date(event.time)
-  const year = eventDate.getFullYear()
-  const month = String(eventDate.getMonth() + 1).padStart(2, '0')
-  const day = String(eventDate.getDate()).padStart(2, '0')
-  const hours = String(eventDate.getHours()).padStart(2, '0')
-  const minutes = String(eventDate.getMinutes()).padStart(2, '0')
+  
+  // 补偿时区差，获取正确的本地时间
+  const timezoneOffset = eventDate.getTimezoneOffset() * 60000
+  const localDate = new Date(eventDate.getTime() + timezoneOffset)
+  
+  // 格式化日期时间字符串
+  const year = localDate.getFullYear()
+  const month = String(localDate.getMonth() + 1).padStart(2, '0')
+  const day = String(localDate.getDate()).padStart(2, '0')
+  const hours = String(localDate.getHours()).padStart(2, '0')
+  const minutes = String(localDate.getMinutes()).padStart(2, '0')
   const localTime = `${year}-${month}-${day}T${hours}:${minutes}`
   
   currentEvent.value = {
