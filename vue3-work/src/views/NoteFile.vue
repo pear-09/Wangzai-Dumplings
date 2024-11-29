@@ -1,51 +1,3 @@
-<template>
-  <div class="note-file-container">
-    <!-- 左侧文件夹列表 -->
-    <div class="sidebar">
-
-      <h2>
-        <i class="iconfont icon-wenjianjia" style="font-size: 28px; margin-right: 4px;color: cadetblue;"></i>
-        文件夹列表</h2>
-      <!-- <button @click="createFolder" class="create-folder-button">新建文件夹</button>    -->
-      <button @click="openCreateFolderModal" class="create-folder-button">新建文件夹</button>   
-      <button @click="manageFolder" 
-      :class="{'manage-folder-button': isManaging, 'create-folder-button': !isManaging}">
-        {{ isManaging ? '确定' : '管理文件夹' }}</button>   
-      <div class="folder-list">
-        <div
-          v-for="folder in folders"
-          :key="folder.id"
-          :class="{'folder-item1': isManaging, 'folder-item': !isManaging}"
-          @click="selectFolder(folder.id, folder.name)"
-        >
-        <h3>{{ folder.name }}</h3>
-        <div v-show="isManaging" class="note-actions">
-            <i class="rename-button iconfont icon-bianji" @click.stop="renameFolder(folder)"></i>
-            <i class="delete-button iconfont icon-shanchu" @click.stop="deleteFolder(folder)"></i>
-        </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 右侧笔记展示区 -->
-    <div class="content">
-      <Note v-if="selectedFolderId !== null" :folderId="selectedFolderId" :folderName="selectedFolderName" />
-    </div>
-    <!-- 新建文件夹弹窗 -->
-    <div v-if="isModalVisible" class="modal-overlay" @click="closeCreateFolderModal">
-      <div class="modal" @click.stop>
-        <h3>新建文件夹</h3>
-        <input v-model="newFolderName" type="text" class="modal-input" placeholder="请输入文件夹名称"  @keydown="handleKeydown" />
-        <div class="modal-actions">
-          <button @click="createFolder" class="modal-button">创建</button>
-          <button @click="closeCreateFolderModal" class="modal-button cancel">取消</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
@@ -61,6 +13,12 @@ const isManaging = ref(false);
 const isModalVisible = ref(false);  // 控制弹窗的显示
 const newFolderName = ref('');  // 用于新建文件夹名称的输入框
 
+const isRenameModalVisible = ref(false);  // 控制重命名文件夹弹窗的显示
+const isDeleteModalVisible = ref(false);  // 控制删除文件夹弹窗的显示
+const renameFolderName = ref('');  // 用于重命名文件夹的输入框
+const folderToRename = ref<Notefiles | null>(null);  // 用于存储需要重命名的文件夹
+const folderToDelete = ref<Notefiles | null>(null);  // 用于存储需要删除的文件夹
+
 // 获取文件夹列表
 const getFolders = async () => {
   try {
@@ -69,7 +27,11 @@ const getFolders = async () => {
     if (response.code === 0) {
       folders.value = response.data;
       console.log(folders.value);
-      
+       // 默认选择第一个文件夹
+       if (folders.value.length > 0) {
+        selectedFolderId.value = folders.value[0].id;
+        selectedFolderName.value = folders.value[0].name;
+      }
     } else {
       alert(response.msg);
     }
@@ -119,58 +81,73 @@ const createFolder = async () => {
   }
 };
 
-
-
-
 // 切换管理模式
 const manageFolder = () => {
   isManaging.value = !isManaging.value;
 };
 
+// 打开重命名文件夹弹窗
+const openRenameFolderModal = (folder: Notefiles) => {
+  folderToRename.value = folder;
+  renameFolderName.value = folder.name;
+  isRenameModalVisible.value = true;
+};
+
+// 关闭重命名文件夹弹窗
+const closeRenameFolderModal = () => {
+  isRenameModalVisible.value = false;
+  renameFolderName.value = '';  // 清空输入框
+};
+
 // 重命名文件夹
-const renameFolder = (folder: Notefiles) => {
-  const newName = prompt('请输入新的文件夹名称', folder.name);
-  if (newName && newName !== folder.name) {
-    request.put(`/ez-note/folder/rename`, { id: folder.id, name: newName })
-      .then(response => {
-        if (response.code === 0) {
-          folder.name = newName;
-        } else {
-          alert(response.msg);
-        }
-      })
-      .catch(err => {
-        console.error('重命名失败', err);
-        alert('重命名失败，请稍后重试');
-      });
+const renameFolder = async () => {
+  if (folderToRename.value && renameFolderName.value !== folderToRename.value.name) {
+    try {
+      const response = await request.put(`/ez-note/folder/rename`, { id: folderToRename.value.id, name: renameFolderName.value });
+      if (response.code === 0) {
+        folderToRename.value.name = renameFolderName.value;
+        closeRenameFolderModal();  // 关闭弹窗
+      } else {
+        alert(response.msg);
+      }
+    } catch (error) {
+      console.error('重命名文件夹失败:', error);
+      alert('重命名失败，请稍后重试');
+    }
   }
 };
 
-// 删除文件夹
-const deleteFolder = (folder: Notefiles) => {
-  if (confirm(`确定要删除文件夹 "${folder.name}" 吗？`)) {
-    // 创建 FormData
-    const formData = new FormData();
-    formData.append('folder_id', String(folder.id)); // 确保 ID 转换为字符串
+// 打开删除文件夹弹窗
+const openDeleteFolderModal = (folder: Notefiles) => {
+  folderToDelete.value = folder;
+  isDeleteModalVisible.value = true;
+};
 
-    request
-      .post(`/ez-note/folder/delete`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data', // 设置 Content-Type
-        },
-      })
-      .then(response => {
-        if (response.code === 0) {
-          // 删除成功后从列表移除文件夹
-          folders.value = folders.value.filter(f => f.id !== folder.id);
-        } else {
-          alert(response.msg);
-        }
-      })
-      .catch(err => {
-        console.error('删除失败', err);
-        alert('删除失败，请稍后重试');
+// 关闭删除文件夹弹窗
+const closeDeleteFolderModal = () => {
+  isDeleteModalVisible.value = false;
+};
+
+// 删除文件夹
+const deleteFolder = async () => {
+  if (folderToDelete.value) {
+    try {
+      const formData = new FormData();
+      formData.append('folder_id', String(folderToDelete.value.id)); // 确保 ID 转换为字符串
+
+      const response = await request.post(`/ez-note/folder/delete`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+      if (response.code === 0) {
+        folders.value = folders.value.filter(f => f.id !== folderToDelete.value?.id);
+        closeDeleteFolderModal();  // 关闭弹窗
+      } else {
+        alert(response.msg);
+      }
+    } catch (error) {
+      console.error('删除文件夹失败:', error);
+      alert('删除失败，请稍后重试');
+    }
   }
 };
 
@@ -185,6 +162,79 @@ onMounted(() => {
   getFolders();  // 获取文件夹数据
 });
 </script>
+
+<template>
+  <div class="note-file-container">
+    <!-- 左侧文件夹列表 -->
+    <div class="sidebar">
+
+      <h2>
+        <i class="iconfont icon-wenjianjia" style="font-size: 28px; margin-right: 4px;color: cadetblue;"></i>
+        文件夹列表</h2>
+      <!-- <button @click="createFolder" class="create-folder-button">新建文件夹</button>    -->
+      <button @click="openCreateFolderModal" class="create-folder-button">新建文件夹</button>   
+      <button @click="manageFolder" 
+      :class="{'manage-folder-button': isManaging, 'create-folder-button': !isManaging}">
+        {{ isManaging ? '确定' : '管理文件夹' }}</button>   
+      <div class="folder-list">
+        <div
+          v-for="folder in folders"
+          :key="folder.id"
+          :class="{'folder-item1': isManaging, 'folder-item': !isManaging}"
+          @click="selectFolder(folder.id, folder.name)"
+        >
+        <h3>{{ folder.name }}</h3>
+        <div v-show="isManaging" class="note-actions">
+            <i class="rename-button iconfont icon-bianji" @click.stop="openRenameFolderModal(folder)"></i>
+            <i class="delete-button iconfont icon-shanchu" @click.stop="openDeleteFolderModal(folder)"></i>
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧笔记展示区 -->
+    <div class="content">
+      <Note v-if="selectedFolderId !== null" :folderId="selectedFolderId" :folderName="selectedFolderName" />
+    </div>
+    <!-- 新建文件夹弹窗 -->
+    <div v-if="isModalVisible" class="modal-overlay" @click="closeCreateFolderModal">
+      <div class="modal" @click.stop>
+        <h2>新建文件夹</h2>
+        <i class="iconfont icon-cuocha_kuai" @click="closeCreateFolderModal"></i>
+        <input v-model="newFolderName" type="text" class="modal-input" placeholder="请输入文件夹名称"  @keydown="handleKeydown" />
+        <div class="modal-actions">
+          <button @click="createFolder" class="modal-button">创建</button>
+          <button @click="closeCreateFolderModal" class="modal-button cancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 重命名文件夹弹窗 -->
+  <div v-if="isRenameModalVisible" class="modal-overlay" @click="closeRenameFolderModal">
+      <div class="modal" @click.stop>
+        <h2>重命名文件夹</h2>
+        <i class="iconfont icon-cuocha_kuai" @click="closeRenameFolderModal"></i>
+        <input v-model="renameFolderName" type="text" class="modal-input" placeholder="请输入新的文件夹名称" />
+        <div class="modal-actions">
+          <button @click="renameFolder" class="modal-button">确认</button>
+          <button @click="closeRenameFolderModal" class="modal-button cancel">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除文件夹弹窗 -->
+    <div v-if="isDeleteModalVisible" class="modal-overlay" @click="closeDeleteFolderModal">
+      <div class="modal" @click.stop>
+        <h2>确认删除 "{{ folderToDelete?.name }}"</h2>
+        <i class="iconfont icon-cuocha_kuai" @click="closeDeleteFolderModal"></i>
+        <i class="iconfont icon-cuowukongxin" style="font-size: 100px; color: #b7003f; "></i>
+        <div class="modal-actions">
+          <button @click="deleteFolder" class="modal-button">确认</button>
+          <button @click="closeDeleteFolderModal" class="modal-button cancel">取消</button>
+        </div>
+      </div>
+    </div>
+</template>
 
 <style scoped>
 .note-file-container {
@@ -358,7 +408,7 @@ onMounted(() => {
   justify-content:end;
   margin: auto 5px;
 }
-
+/* 遮罩层 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -366,6 +416,7 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);  /* 背景模糊效果，调整模糊程度 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -373,39 +424,61 @@ onMounted(() => {
 }
 
 .modal {
-  background: #fff;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 380px;
+  /* height: 300px; */
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  width: 300px;
+  background-color: rgba(255, 255, 255, 0.9);  /* 弹窗背景颜色及透明度 */
 }
 
-.modal h3 {
+.modal .icon-cuocha_kuai{
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 20px
+}
+
+.modal .icon-cuocha_kuai:hover{
+  color: #b7003f;
+}
+
+.modal .icon-cuowukongxin{
   text-align: center;
-  margin-top: 5px;
-  margin-bottom: 20px;
-  font-size: 18px;
-  color: #333;
+  transform: translateY(-20px);
+}
+
+.modal h2 {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 40px;
+  /* font-size: 20px; */
+  color: #333333c9;
 }
 
 .modal-input {
   width: 90%;
   padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  margin-bottom: 40px;
+  border: none;
+  border-bottom: 1px solid #009691;
+  background-color: transparent;
   outline: none;
 }
 
 .modal-actions {
-  width: 55%;
+  width: 50%;
   display: flex;
   margin: auto;
   justify-content: space-between;
 }
 
 .modal-button {
-  width: 70px;
+  width: 80px;
+  height: 40px;
   padding: 8px 15px;
   border-radius: 5px;
   border: none;
@@ -423,7 +496,7 @@ onMounted(() => {
 }
 
 .modal-button {
-  background-color: #429490;;
+  background-color: #429490;
   color: white;
 }
 

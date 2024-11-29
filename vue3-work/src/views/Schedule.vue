@@ -1,5 +1,9 @@
 <template>
+   <button @click="submitPlanToBackend">生成复习计划</button>
   <div class="schedule-container">
+    <!-- 显示 backendData -->
+    <!-- <p>Backend Data: {{ backendData }}</p> -->
+    
     <!-- 日历部分 -->
     <div class="calendar-left">
       <div id="calendar"></div>
@@ -67,6 +71,9 @@ import { DateClickArg } from "@fullcalendar/interaction";
 import request from "@/utils/request"; // 自定义的请求实例
 import Modal from "@/components/Modal.vue";
 import { TaskData } from "@/types/api/UpdateTask.d.ts"; 
+import { useBackendDataStore } from '../stores/backendDataStore'; // 引入 Pinia store
+
+
 
 export default defineComponent({
   name: "ScheduleView",
@@ -91,6 +98,9 @@ export default defineComponent({
     const events = ref<EventInput[]>([]); // 所有日程
     const selectedDate = ref<string>(''); // 当前选中的日期
     const selectedEvents = ref<any[]>([]); // 当前选中日期的日程
+
+    // 获取 Pinia store 数据
+    const backendDataStore = useBackendDataStore();
 
     // 获取所有日程（用于日历）
     const fetchEvents = async () => {
@@ -237,12 +247,40 @@ export default defineComponent({
       };
       modalVisible.value = true;
     };
+    
+    // 提交计划数据给后端
+    const submitPlanToBackend = async () => {
+      if(!backendDataStore.backendData){
+        alert("没有复习计划");
+        return;
+      }
+      try {
+        // 格式化数据：添加 startday 字段
+        const startDate = new Date().toISOString().split("T")[0]; // 获取今天的日期（yyyy-mm-dd）
+        const requestData = {
+          startday: startDate,
+          plan: backendDataStore.backendData
+        };
+         // 打印请求数据以进行调试
+        console.log("Request Data:", requestData);
+        // 发送 POST 请求到后端
+        const response = await request.post('/ez-note/date/generate', requestData);
+
+        if (response.code === 0) {
+          console.log("计划提交成功");
+        } else {
+          console.error("计划提交失败:", response.msg);
+        }
+      } catch (error) {
+        console.error("Error submitting plan:", error);
+      }
+    };
 
     onMounted(() => {
       initializeCalendar(); // 初始化日历
       // 获取今天的日期，并传递给 fetchSelectedDayEvents
-  const today = new Date().toISOString().split("T")[0]; // 获取今天的日期（yyyy-mm-dd）
-  fetchSelectedDayEvents(today); // 自动触发，传递当天日期
+      const today = new Date().toISOString().split("T")[0]; // 获取今天的日期（yyyy-mm-dd）
+      fetchSelectedDayEvents(today); // 自动触发，传递当天日期
     });
 
     return {
@@ -253,9 +291,11 @@ export default defineComponent({
       fetchEvents,
       fetchSelectedDayEvents,
       handleFormSubmit,
+      submitPlanToBackend,  // 新增提交计划方法
       toggleStatus,
       deleteEvent,
       openCreateEventModal,
+      backendData: backendDataStore.backendData, // 将 backendData 传递到模板
     };
   },
 });
