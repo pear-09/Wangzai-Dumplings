@@ -31,8 +31,10 @@
         >
           {{ doc.title }}
           <!-- 管理模式下，显示删除和重命名按钮 -->
-          <button v-if="isManaging" @click.stop="confirmDelete(doc.id)">删除</button>
-          <button v-if="isManaging" @click.stop="openRenameModal(doc.id)">重命名</button>
+          <div v-if="isManaging" class="manage-actions">
+            <button @click.stop="confirmDelete(doc.id)">删除</button>
+            <button @click.stop="openRenameModal(doc.id)">重命名</button>
+          </div>
         </li>
       </ul>
 
@@ -42,8 +44,12 @@
       <!-- 重命名弹窗 -->
       <div v-if="newTitleModalOpen" class="rename-modal">
         <input v-model="newTitle" placeholder="输入新的文件名" />
-        <button @click="renameDocument(deletingNoteId, newTitle)">确认</button>
-        <button @click="closeRenameModal">取消</button>
+        
+        <!-- 新增的按钮容器，用于并排显示确认和取消按钮 -->
+        <div class="rename-modal-buttons">
+          <button class="confirm" @click="renameDocument(deletingNoteId, newTitle)">确认</button>
+          <button class="cancel" @click="closeRenameModal">取消</button>
+        </div>
       </div>
     </div>
 
@@ -75,6 +81,7 @@
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
@@ -220,8 +227,8 @@ const renameDocument = async (noteId: number, newTitle: string) => {
       },
     });
     if (response.code === 0) {
-      await fetchDocumentsInDefaultFolder(defaultFolder.value.id); // 重命名成功后刷新文档列表
-      closeRenameModal(); // 关闭弹窗
+      closeRenameModal(); // 成功后关闭弹窗
+      await fetchDocumentsInDefaultFolder(defaultFolder.value.id); // 刷新文档列表
     } else {
       alert(response.msg);
     }
@@ -230,7 +237,10 @@ const renameDocument = async (noteId: number, newTitle: string) => {
   }
 };
 
-onMounted(fetchDefaultFolderAndDocuments);
+// 初始化
+onMounted(() => {
+  fetchDefaultFolderAndDocuments();
+});
 </script>
 
 
@@ -247,7 +257,7 @@ onMounted(fetchDefaultFolderAndDocuments);
   background-color: #ff9800; /* 橙色按钮 */
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
   transition: background-color 0.3s ease;
@@ -255,55 +265,109 @@ onMounted(fetchDefaultFolderAndDocuments);
 
 .manage-doc-button:hover {
   background-color: #fb8c00;
+  transform: translateY(-2px); /* 鼠标悬浮时按钮上升 */
 }
 
+.manage-doc-button:active {
+  background-color: #f57c00;
+  transform: translateY(0); /* 按钮点击时恢复位置 */
+}
+
+/* 管理文档按钮的整体布局 */
 .manage-actions {
-  display: inline-block;
-  margin-left: 10px;
+  display: flex;
+  gap: 1px; /* 增加按钮之间的间距 */
+  align-items: center;
+  justify-content: flex-end; /* 将按钮靠右对齐 */
+  margin-left: auto; /* 让按钮区域自动推到最右侧 */
 }
 
 .manage-actions button {
-  padding: 4px 8px;
-  margin-right: 5px;
+  padding: 6px 12px;
+  margin-right: 1px;
   background-color: #ff5722; /* 删除按钮 */
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
 }
 
+/* 删除按钮悬浮效果 */
 .manage-actions button:hover {
   background-color: #e64a19;
+  transform: translateY(-2px); /* 鼠标悬浮时按钮上升 */
 }
 
-/* 重命名弹窗 */
-.rename-popup {
+/* 删除按钮点击效果 */
+.manage-actions button:active {
+  background-color: #d84315;
+  transform: translateY(0); /* 按钮点击时恢复位置 */
+}
+
+/* 重命名按钮样式 */
+.manage-actions button:nth-child(2) {
+  background-color: #4caf50; /* 绿色按钮 */
+}
+
+/* 重命名按钮悬浮效果 */
+.manage-actions button:nth-child(2):hover {
+  background-color: #45a049;
+  transform: translateY(-2px);
+}
+
+/* 重命名弹窗样式 */
+.rename-modal {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-top: 20px;
 }
 
-.rename-popup input {
-  padding: 5px 10px;
+.rename-modal input {
+  padding: 8px 16px;
   font-size: 16px;
   margin-bottom: 10px;
-  width: 200px;
+  width: 250px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  transition: border 0.3s ease;
 }
 
-.rename-popup button {
+.rename-modal input:focus {
+  border-color: #4caf50;
+  outline: none;
+}
+
+.rename-modal button {
   padding: 8px 16px;
   background-color: #4caf50;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
-.rename-popup button:hover {
+.rename-modal button:hover {
   background-color: #45a049;
 }
+
+.rename-modal button:active {
+  background-color: #388e3c;
+}
+
+/* 确认和取消按钮容器使用 Flexbox 横向排列 */
+.rename-modal-buttons {
+  display: flex; 
+  gap: 15px; /* 按钮间距 */
+  justify-content: center; /* 居中对齐 */
+  width: 100%; /* 确保按钮容器占满宽度 */
+}
+
 /* 确保页面内容左对齐，背景色简约 */
 .content-area {
   width: 70%; /* 宽度占 70% */
@@ -373,6 +437,10 @@ onMounted(fetchDefaultFolderAndDocuments);
   display: flex;
   align-items: center; /* 垂直居中 */
   justify-content: center; /* 水平居中 */
+  flex-wrap: nowrap; /* 不允许换行 */
+  /* 添加阴影效果 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* 阴影的颜色、模糊程度等 */
+  transition: box-shadow 0.3s ease, transform 0.3s ease; /* 为了更好的过渡效果 */
 }
 
 /* 确保文档项在较小屏幕上也能良好显示 */
@@ -384,11 +452,20 @@ onMounted(fetchDefaultFolderAndDocuments);
 }
 
 .document-item:hover {
-  background-color: #f5f5f5;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); /* 增加更大的阴影 */
+  transform: translateY(-4px); /* 鼠标悬停时让文档框稍微上浮 */
 }
 
 .document-item:active {
   background-color: #f0f0f0;
+}
+
+/* 文档标题：确保文字不会换行 */
+.document-item .doc-title {
+  flex-grow: 1; /* 使文档名称占据剩余的空间 */
+  white-space: nowrap; /* 禁止换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 超过宽度时显示省略号 */
 }
 
 .ai-features-wrapper {
@@ -437,9 +514,11 @@ onMounted(fetchDefaultFolderAndDocuments);
   color: #333;
 }
 
+/* 页面整体按钮的风格和布局 */
 .page-container {
   display: flex;
   justify-content: space-between;
+  padding: 20px;
 }
 
 </style>
