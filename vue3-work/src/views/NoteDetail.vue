@@ -431,6 +431,7 @@ const isSuccess = ref(false);
 // 切换AI对话框的显示/隐藏
 // 退出摘要模式
 const toggleAIChat = (mode:number) => {
+  aiMessages.value.push({ sender: 'ai', content: '您好！我是您的ai助手，请问可以为您做些什么？', loading:false, editing: false  });
   showAIChat.value = !showAIChat.value;
   isSummaryMode.value = false;
   selectedText.value = '';
@@ -544,7 +545,7 @@ const closeStudyPlanDialog = () => {
       <div class="note-form">
         <h2>{{ note.title || '新建笔记1' }}</h2>
         <!-- 使用 Quill 编辑器的容器 -->
-        <div id="editor-container"></div>
+        <div id="editor-container" style="font-size: 18px;"></div>
 
         <label for="note-tag">标签 :</label>
 
@@ -1044,6 +1045,7 @@ h2{
 .ai-chat-message .content {
   width: 290px;
   padding: 2px;
+  padding-right: 8px;
   background-color: #e1e1e1;
   border-radius: 5px;
 }
