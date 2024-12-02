@@ -3,7 +3,9 @@
 
 ### 后端自动化单测
 ```bash
-cd backend
+cd backend # 进入后端project目录
+pwd # /Wangzai-Dumplings/backend
+
 make test # 运行所有模块测试
 make test-($service) # service为user、note、date服务
 
