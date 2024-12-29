@@ -237,8 +237,18 @@ const renameDocument = async (noteId: number, newTitle: string) => {
   }
 };
 
+// 检查 auth_token
+const checkAuthToken = () => {
+  const token = localStorage.getItem('auth_token');  // 从 localStorage 获取 auth_token
+  if (!token) {
+    // 如果没有 auth_token，跳转到登录页面
+    router.push('/land');
+  }
+};
+
 // 初始化
 onMounted(() => {
+  checkAuthToken();  // 组件挂载时检查 token
   fetchDefaultFolderAndDocuments();
 });
 </script>

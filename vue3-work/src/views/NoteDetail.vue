@@ -5,9 +5,52 @@ import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
 import Quill from 'quill'; // 引入 Quill 编辑器
 import 'quill/dist/quill.snow.css'; // 引入 Quill 样式
 import type { Note, GetNoteDetailResponse } from '@/types/api/getNotelist';
-import { useBackendDataStore } from '../stores/backendDataStore';  // 引入 Pinia store
-import { nextTick } from 'vue';
-const backendDataStore = useBackendDataStore();  // 使用 store
+
+// 记录用户选择的导出格式
+const exportFormat = ref<'txt' | 'docx'>('txt'); 
+
+const exportNote = async () => {  
+  try {
+    const params = {
+      note_id: note.value.id, 
+      format: exportFormat.value, 
+    };
+
+    // 发起请求，设置 responseType 为 'blob'，以便处理文件下载
+    const response = await request.get('/ez-note/note/export', { params, responseType: 'blob' });
+
+    // 打印整个响应对象查看其结构
+    console.log(response);
+
+    // 判断 Blob 的 size 是否大于零，且检查文件类型
+    if (response.size > 0 && response.type === 'text/plain') {
+      // 如果 Blob 数据有效，处理文件下载
+      const fileURL = URL.createObjectURL(response);  // 直接使用 response 作为 Blob
+      const a = document.createElement('a');
+      const disposition = response.headers['content-disposition'];
+      
+      // 处理文件名
+      const matches = /filename\*=UTF-8''(.+)/.exec(disposition);
+      const fileName = matches && matches[1] ? decodeURIComponent(matches[1]) : '未命名文件';
+      
+      // 创建并触发下载
+      a.href = fileURL;
+      a.download = fileName; 
+      a.click();
+      
+      // 释放资源
+      URL.revokeObjectURL(fileURL);
+    } else {
+      // 如果 Blob 数据无效，提示用户错误
+      alert('导出失败：未返回有效文件数据');
+    }
+  } catch (error) {
+    console.error('导出失败:', error);
+    alert('导出失败，请稍后重试');
+  }
+};
+
+
 const studyPlan = ref<string>('');
 const isplan = ref(false);
 
@@ -408,7 +451,10 @@ const cancelEdit = () => {
 const showAIChat = ref(false); // 控制AI对话框的显示与隐藏
 const loading = ref(false);  // 控制加载状态
 // AI 消息数组，每条消息增加一个 `editing` 标志
-const aiMessages = ref<Array<{ sender: string, content: string, loading: boolean, editing: boolean }>>([]);
+const aiMessages = ref<Array<{ sender: string, content: string, loading: boolean, editing: boolean }>>([
+  { sender: 'ai', content: '您好！我是您的AI助手，请问可以为您做些什么？', loading: false, editing: false }
+]);
+
 
 // 编辑按钮点击事件
 const editAIMessage = (index: number) => {
@@ -431,7 +477,6 @@ const isSuccess = ref(false);
 // 切换AI对话框的显示/隐藏
 // 退出摘要模式
 const toggleAIChat = (mode:number) => {
-  aiMessages.value.push({ sender: 'ai', content: '您好！我是您的ai助手，请问可以为您做些什么？', loading:false, editing: false  });
   showAIChat.value = !showAIChat.value;
   isSummaryMode.value = false;
   selectedText.value = '';
@@ -587,7 +632,17 @@ const closeStudyPlanDialog = () => {
         <div class="actions">
           <button class="btn1" @click="saveNote">保存</button>
           <button class="btn2" @click="cancelEdit">取消</button>
+          <button class="btn-export" @click="exportNote">导出</button> <!-- 新增导出按钮 -->
         </div>
+        <!-- 选择格式 -->
+        <div class="export-options">
+          <label for="export-format">导出格式：</label>
+          <select v-model="exportFormat" id="export-format">
+            <option value="txt">TXT</option>
+            <option value="docx">DOCX</option>
+          </select>
+        </div>
+
       </div>
     </div>
     <!-- AI辅助对话框 -->

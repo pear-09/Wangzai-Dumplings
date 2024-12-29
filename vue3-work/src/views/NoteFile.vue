@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';  // 引入 Vue Router
 import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
 import Note from './Note.vue';  // 导入 Note 子组件
-
 import type { Notefiles } from '@/types/api/getNotefiles';
 
-
+const router = useRouter();  // 获取 router 实例
 const folders = ref<Notefiles[]>([]);
 const selectedFolderId = ref<number | null>(null);
 const selectedFolderName = ref<string>(''); // 添加一个 ref 用于保存文件夹的名字
@@ -33,7 +33,7 @@ const getFolders = async () => {
         selectedFolderName.value = folders.value[0].name;
       }
     } else {
-      alert(response.msg);
+      // alert(response.msg);
     }
   } catch (error) {
     console.error('获取文件夹列表失败:', error);
@@ -151,6 +151,15 @@ const deleteFolder = async () => {
   }
 };
 
+// 检查 auth_token
+const checkAuthToken = () => {
+  const token = localStorage.getItem('auth_token');  // 从 localStorage 获取 auth_token
+  if (!token) {
+    // 如果没有 auth_token，跳转到登录页面
+    router.push('/land');
+  }
+};
+
 // 处理按回车新建文件夹
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Enter') {
@@ -159,6 +168,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 };
 
 onMounted(() => {
+  checkAuthToken();  // 组件挂载时检查 token
   getFolders();  // 获取文件夹数据
 });
 </script>

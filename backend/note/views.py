@@ -433,6 +433,77 @@ def update_note_title_view(request):
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
+# @csrf_exempt
+# def export_note_view(request):
+#     """
+#     导出笔记内容为文件的视图，可选择txt或docx格式
+#     请求方法: GET
+#     请求参数:
+#         note_id (必填)  : 笔记ID
+#         format (选填)   : 导出格式, 可选 'txt' 或 'docx'，默认为 'txt'
+#     """
+#     print("request.method =", request.method)
+#     if request.method == 'GET':
+#         # 验证并刷新 token
+#         try:
+#             token = verify_and_refresh_token(request)
+#             access_token = AccessToken(token)
+#             user_id = access_token['user_id']  # 从 token 中获取 user_id
+#         except Exception as e:
+#             return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
+
+#         # 获取前端传递的 note_id 和导出格式
+#         note_id = request.GET.get('note_id')
+#         export_format = request.GET.get('format', 'txt').lower()  # 默认 txt
+
+#         if not note_id:
+#             return JsonResponse({"code": 1, "msg": "缺少参数：note_id"})
+
+#         # 查询指定笔记
+#         try:
+#             note = Note.objects.get(id=note_id, user_id=user_id)
+#         except Note.DoesNotExist:
+#             return JsonResponse({"code": 1, "msg": "笔记不存在或无权限导出"})
+
+#         # 准备文件名
+#         file_name_base = note.title.strip() if note.title.strip() else "未命名"
+#         # 为了避免不合法的文件名，可以再做一次简单处理
+#         file_name_base = file_name_base.replace('/', '_').replace('\\', '_').replace(':', '-')
+
+#         # 根据导出格式进行处理
+#         if export_format == 'docx':
+#             # --------------------
+#             #   导出为 .docx
+#             # --------------------
+#             doc = Document()
+#             doc.add_heading(note.title, level=1)  # 标题
+#             doc.add_paragraph(note.content)       # 内容
+
+#             file_stream = io.BytesIO()  # 创建内存流
+#             doc.save(file_stream)       # 将生成的 docx 写入内存流
+#             file_stream.seek(0)         # 指针回到开头
+
+#             safe_file_name = escape_uri_path(f"{file_name_base}.docx")
+
+#             response = HttpResponse(
+#                 file_stream.getvalue(),
+#                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+#             )
+#             response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{safe_file_name}'
+#             return response
+
+#         else:
+#             # --------------------
+#             #   默认为 .txt
+#             # --------------------
+#             file_content = f"{note.title}\n\n{note.content}"
+#             safe_file_name = escape_uri_path(f"{file_name_base}.txt")
+
+#             response = HttpResponse(file_content, content_type='text/plain; charset=UTF-8')
+#             response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{safe_file_name}'
+#             return response
+
+#     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 @csrf_exempt
 def export_note_view(request):
     """
@@ -504,6 +575,7 @@ def export_note_view(request):
             return response
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
 
 
 @csrf_exempt

@@ -34,6 +34,65 @@ const isRenameModalVisible = ref(false); // 控制笔记重命名弹窗显示
 
 const deletingNoteId = ref<string | null>(null); // 待删除笔记的 ID
 const renameNoteId = ref<string | null>(null); // 重命名笔记的 ID
+
+// 显示导入文件弹窗
+const isImportModalVisible = ref(false); // 控制导入文件弹窗的显示
+
+// 选择的文件
+const selectedFile = ref<File | null>(null);
+
+// 显示导入文件弹窗
+const showImportModal = () => {
+  isImportModalVisible.value = true;
+};
+
+// 关闭导入文件弹窗
+const closeImportModal = () => {
+  isImportModalVisible.value = false;
+  selectedFile.value = null; // 重置文件选择
+};
+
+// 处理文件选择
+const handleFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (input.files && input.files[0]) {
+    selectedFile.value = input.files[0];  // 获取选择的文件
+  }
+};
+
+// 上传文件到服务器
+const importFile = async () => {
+  if (!selectedFile.value) {
+    alert('请选择一个文件');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', selectedFile.value);
+  formData.append('folder_id', props.folderId.toString()); // 传递文件夹ID
+
+  // 如果需要，可以根据实际情况设置 title 和 format
+  const title = '';  // 如果需要，可以从用户输入中获取
+  formData.append('title', title);  // 传递标题（如果需要）
+  
+  try {
+    const response = await request.post('/ez-note/note/import', formData);
+
+    if (response.code === 0) {
+      alert('文件导入成功');
+      // 导入成功后，可以刷新当前文件夹笔记列表
+      getNotes(props.folderId);
+    } else {
+      alert(response.msg || '导入失败，请稍后重试');
+    }
+  } catch (error) {
+    console.error('导入文件失败:', error);
+    alert('导入失败，请稍后重试');
+  } finally {
+    closeImportModal();
+  }
+};
+
 // 获取该文件夹下的笔记
 const getNotes = async (folderId: number) => {
   try {
@@ -200,7 +259,7 @@ const handleKeydown = (event: KeyboardEvent) => {
   <div class="note-list-container">
     <h1 class="page-title">{{ currentFolder?.name || '我的笔记' }}</h1>
     <div class="action-buttons">
-      <button class="view-button" >导入文件</button>
+      <button class="view-button" @click="showImportModal">导入文件</button>
       <button class="view-button" @click="showNewNoteModal">新建笔记</button>
       <button class="view-button manage-button"
        @click="toggleManaging">
@@ -264,6 +323,18 @@ const handleKeydown = (event: KeyboardEvent) => {
         <div class="modal-actions">
           <button @click="confirmRenameNote(reNoteTitle)" class="modal-button confirm-button">确认</button>
           <button @click="closeRenameModal" class="modal-button cancel-button">取消</button>
+        </div>
+      </div>
+    </div>
+    <!-- 导入文件弹窗 -->
+    <div v-if="isImportModalVisible" class="modal">
+      <div class="modal-content">
+        <h2>导入文件</h2>
+        <i class="iconfont icon-cuocha_kuai" @click="closeImportModal"></i>
+        <input type="file" ref="fileInput" @change="handleFileChange" />
+        <div class="modal-actions">
+          <button @click="importFile" class="modal-button confirm-button">上传</button>
+          <button @click="closeImportModal" class="modal-button cancel-button">取消</button>
         </div>
       </div>
     </div>
