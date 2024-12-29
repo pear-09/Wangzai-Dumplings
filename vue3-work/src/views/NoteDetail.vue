@@ -5,6 +5,11 @@ import request from '@/utils/request';  // 引入 request.ts 中的 axios 实例
 import Quill from 'quill'; // 引入 Quill 编辑器
 import 'quill/dist/quill.snow.css'; // 引入 Quill 样式
 import type { Note, GetNoteDetailResponse } from '@/types/api/getNotelist';
+import { useBackendDataStore } from '../stores/backendDataStore';  // 引入 Pinia store
+import { nextTick } from 'vue';
+const backendDataStore = useBackendDataStore();  // 使用 store
+const studyPlan = ref<string>('');
+const isplan = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -33,11 +38,80 @@ const note = ref<Note>({
 // 初始化 Quill 编辑器
 const quillEditor = ref<any>(null);
 const isSummaryMode = ref(false); // 控制摘要模式
+// 后端返回的数据
+const backendData = ref<string>(''); // 用于存储从后端获取的替换文本
 const selectedText = ref<string>(''); // 记录选中的文本
 const AI_model = ref(); 
 const mode_name = ref<string>('');
 const showOptions = ref(false); // 控制“√”“×”的显示
 const optionsPosition = ref({ x: 0, y: 0 }); // 选项按钮的位置
+
+// 点击"替换"按钮后触发的函数
+const replaceText = () => {
+  if (!selectedText.value || !backendData.value || !quillEditor.value) {
+    alert('请先选择文本并确保后端数据已加载');
+    return;
+  }
+
+  const editor = quillEditor.value;
+
+  // 获取编辑器中的当前文本
+  const text = editor.getText();
+
+  // 获取选中的文本
+  const selected = window.getSelection()?.toString().trim();
+
+  // 如果选中的文本与预期的选中文本一致，进行替换
+  if (selected && selected === selectedText.value) {
+    const range = window.getSelection()?.getRangeAt(0); // 获取选中的范围
+    if (range) {
+      // 删除选中的文本并插入新文本
+      range.deleteContents();
+      range.insertNode(document.createTextNode(backendData.value)); // 插入新文本
+    }
+
+    // 清空选中的文本
+    selectedText.value = '';
+  } else {
+    console.log("选中的文本与当前选区不匹配");
+  }
+};
+
+// 点击定制日程触发的函数
+const sendToschedule = async () => {
+  if (studyPlan.value) {
+    // 获取当前日期
+    const currentDate = new Date();
+    const startDate = currentDate.toISOString().split('T')[0]; // 格式化为 yyyy-mm-dd
+
+    // 转换 studyPlan 为后端需要的格式
+    const formattedPlan = {
+      startday: startDate,
+      // plan: JSON.parse(studyPlan.value) // 将存储的字符串转为对象
+      plan: studyPlan.value , // 保持 plan 的内容不变
+    };
+
+    // 发送转换后的数据给后端
+    try {
+      const response = await request.post('/ez-note/date/generate', formattedPlan, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.code === 0) {
+        alert('复习计划提交成功');
+      } else {
+        alert('提交失败，请稍后重试');
+      }
+    } catch (error) {
+      console.error('提交失败:', error);
+      alert('提交失败，请稍后重试');
+    }
+  } else {
+    alert('还没有生成复习计划哦！');
+  }
+};
+
+
 
 // 弹窗显示状态
 const showStudyPlanDialog = ref(false);
@@ -74,7 +148,7 @@ const sendStudyPlan = async (text: string, AI_model:number) => {
 
 const sendAIRequest = async (url: string, text: string, type: string, AI_model: number) => {
   // 创建一个新的 AI 消息，先设置为加载状态
-  aiMessages.value.push({ sender: 'ai', content: '', loading: true });
+  aiMessages.value.push({ sender: 'ai', content: '', loading: true, editing:false });
 
   // 获取当前消息的索引
   const loadingMessageIndex = aiMessages.value.length - 1;
@@ -125,22 +199,22 @@ const confirmMode = (mode: string,name: string) => {
   // AI 立即回复
   switch (mode) {
     case 'summary':
-      aiMessages.value.push({ sender: 'ai', content: '您已切换到摘要模式，请选中文本生成摘要。', loading: false});
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到摘要模式，请选中文本生成摘要。', loading: false, editing:false});
       break;
     case 'translation':
-      aiMessages.value.push({ sender: 'ai', content: '您已切换到翻译模式，请选中文本进行翻译。', loading: false });
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到翻译模式，请选中文本进行翻译。', loading: false, editing:false });
       break;
     case 'definition':
-      aiMessages.value.push({ sender: 'ai', content: '您已切换到名词解释模式，请选中文本查看解释。', loading: false });
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到名词解释模式，请选中文本查看解释。', loading: false, editing:false });
       break;
     case 'keywords':
-      aiMessages.value.push({ sender: 'ai', content: '您已切换到提取关键词模式，请选中文本提取关键词。', loading: false });
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到提取关键词模式，请选中文本提取关键词。', loading: false, editing:false });
       break;
     case 'studyPlan':
-      aiMessages.value.push({ sender: 'ai', content: '您已切换到生成复习计划模式，请选中文本生成计划。', loading: false });
+      aiMessages.value.push({ sender: 'ai', content: '您已切换到生成复习计划模式，请选中文本生成计划。', loading: false, editing:false });
       break;
     default:
-      aiMessages.value.push({ sender: 'ai', content: '未知模式，请重新选择。', loading: false });
+      aiMessages.value.push({ sender: 'ai', content: '未知模式，请重新选择。', loading: false, editing:false });
   }
 };
 
@@ -333,12 +407,31 @@ const cancelEdit = () => {
 
 const showAIChat = ref(false); // 控制AI对话框的显示与隐藏
 const loading = ref(false);  // 控制加载状态
-const aiMessages = ref<Array<{ sender: string, content: string, loading:boolean}>>([]); // AI与用户的消息
+// AI 消息数组，每条消息增加一个 `editing` 标志
+const aiMessages = ref<Array<{ sender: string, content: string, loading: boolean, editing: boolean }>>([]);
+
+// 编辑按钮点击事件
+const editAIMessage = (index: number) => {
+  aiMessages.value[index].editing = true; // 设置为编辑状态
+};
+
+// 保存编辑后的 AI 消息
+const saveAIMessage = (index: number,message:string) => {
+  // 提交编辑的内容（此处你可以加入保存请求，如果需要保存到后端）
+  aiMessages.value[index].editing = false; // 退出编辑状态
+  // 如果需要将修改后的消息提交到后端，可以在这里进行处理
+  backendData.value = message;
+};
+
+
+
+
 const showPage1 = ref(true);
 const isSuccess = ref(false);
 // 切换AI对话框的显示/隐藏
 // 退出摘要模式
 const toggleAIChat = (mode:number) => {
+  aiMessages.value.push({ sender: 'ai', content: '您好！我是您的ai助手，请问可以为您做些什么？', loading:false, editing: false  });
   showAIChat.value = !showAIChat.value;
   isSummaryMode.value = false;
   selectedText.value = '';
@@ -355,30 +448,52 @@ const toggleshowPage = () => {
   showPage1.value = !showPage1.value;
 };
 
+// 格式化学习计划为纯文本格式
+const formatPlan = (plan: Array<{ day: number, content: string[] }>) => {
+  return plan.map((item) => {
+    // 格式化每一天的学习计划，去掉 HTML 标签
+    const dayTitle = `第${item.day}天`;
+    const taskList = item.content.map((task) => `- ${task}`).join('\n');  // 使用换行符分隔任务
+
+    return `${dayTitle}\n${taskList}`;
+  }).join('\n\n');  // 每天的任务之间用两个换行符分隔
+};
+
 // 发送AI消息
 const sendAIMessage = (response: any, type: string) => {
  switch (type) {
     case 'translation':
-      aiMessages.value.push({ sender: 'ai', content: response.translation, loading:false });
+      aiMessages.value.push({ sender: 'ai', content: response.translation, loading:false, editing: false  });
+      backendData.value = response.translation;
       break;
     case 'summary':
-      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false  });
+      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false, editing: false   });
+      backendData.value = response.summary;
       break;
-    case 'keywords':
-      aiMessages.value.push({ sender: 'ai', content: response.keywords, loading:false  });
+    case 'keywords':    
+      // 处理 keywords 格式，将数组转为以逗号分隔的字符串
+      const formattedKeywords = response.keywords.join(',');
+      aiMessages.value.push({ sender: 'ai', content: formattedKeywords, loading: false, editing: false });
+      backendData.value = formattedKeywords;  // 更新为处理后的格式
       break;
     case 'explanation':
-      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false  });
+      aiMessages.value.push({ sender: 'ai', content: response.summary, loading:false, editing: false   });
+      backendData.value = response.summary;
       break;
     case 'plan':
-    aiMessages.value.push({ sender: 'ai', content: response.plan, loading:false  });
+    studyPlan.value = response.plan; //把后端返回的数据存起来
+    // 格式化 plan 数据
+    const formattedPlan = formatPlan(response.plan);
+    aiMessages.value.push({ sender: 'ai', content: formattedPlan, loading: false, editing: false });
+    // 更新 backendData 为格式化后的数据
+    backendData.value = formattedPlan;
     break;
     default:
       console.warn('未知类型:', type);
   }
 
 };
-
+const textarea = ref<HTMLTextAreaElement | null>(null);
 
 onMounted(() => {
   if (isNewNote) {
@@ -386,7 +501,6 @@ onMounted(() => {
   } else if (noteId) {
     fetchNote(String(noteId));
   }
-
   // 初始化 Quill 编辑器
   quillEditor.value = new Quill('#editor-container', {
     theme: 'snow', // 主题设置
@@ -402,6 +516,14 @@ onMounted(() => {
       ],
     },
   });
+  if (textarea.value) {
+    textarea.value.addEventListener('input', () => {
+      // 重置高度，以便重新计算
+      textarea.value!.style.height = 'auto';
+      // 设置高度为内容的实际高度
+      textarea.value!.style.height = `${textarea.value!.scrollHeight}px`;
+    });
+  }
 });
 
 // 打开生成复习计划的弹窗
@@ -414,6 +536,7 @@ const closeStudyPlanDialog = () => {
   showStudyPlanDialog.value = false;
 };
 
+
 </script>
 
 <template>
@@ -422,7 +545,7 @@ const closeStudyPlanDialog = () => {
       <div class="note-form">
         <h2>{{ note.title || '新建笔记1' }}</h2>
         <!-- 使用 Quill 编辑器的容器 -->
-        <div id="editor-container"></div>
+        <div id="editor-container" style="font-size: 18px;"></div>
 
         <label for="note-tag">标签 :</label>
 
@@ -499,18 +622,25 @@ const closeStudyPlanDialog = () => {
             </span>
 
             <!-- 如果消息已经加载完成，则显示实际内容 -->
-            <span v-else v-if="message.content">
-              <div class="content">{{ message.content }}</div>
+            <span v-else v-if="message.content&& !message.editing">
+              <div class="content">
+              {{ message.content }}
+              <button class="edit-btn" @click="editAIMessage(index)">
+                <i class="iconfont icon-bianji1" style="color:#28a745; font-size: 20px;"></i>
+              </button>
+              </div>
             </span>
+
+            <div v-if="message.editing">
+            <!-- 将消息变成 textarea -->
+            <textarea rows="15" cols="40" v-model="message.content" class="ai-message-textarea" @input="adjustTextareaHeight"></textarea>
+            <button class="savebtn" @click="saveAIMessage(index,message.content)">保存</button>
+          </div>
           </div>
 
         </div>
       </div>
-      <!-- <div v-if="isSuccess" class="tools">
-        <button>替换</button>
-        <button>重新</button>
-        <button>编辑</button>
-      </div> -->
+        <button class="tihuan" @click="replaceText">替换</button>
       <div class="ai-chat-footer">
         <div v-if="showPage1" class="page1">
           <button @click="setMode('summary','生成摘要')">生成摘要</button>
@@ -520,6 +650,7 @@ const closeStudyPlanDialog = () => {
         <div v-else class="page2">
           <button @click="setMode('keywords','提取关键词')">提取关键词</button>
           <button @click="setMode('studyPlan','生成复习计划')">生成复习计划</button>
+          <button v-if="isplan" @click="sendToschedule" style="background-color:brown" >导出日程</button>
         </div>
         <button class="next" @click="toggleshowPage">
           <i class="iconfont icon-fangxiang-you"></i>
@@ -560,15 +691,40 @@ const closeStudyPlanDialog = () => {
     </select>
 
     <div class="modal-buttons">
-      <button @click="sendStudyPlan(note.content, AI_model), showStudyPlanDialog = false;" class="btn confirm-btn">生成计划</button>
-      <button @click="closeStudyPlanDialog" class="btn cancel-btn">取消</button>
+      <button @click="sendStudyPlan(note.content, AI_model), showStudyPlanDialog = false, isplan=true;" class="btn confirm-btn1">生成计划</button>
+      <button @click="closeStudyPlanDialog" class="btn cancel-btn1">取消</button>
     </div>
   </div>
 </div>
 
 </template>
 
+
 <style scoped>
+.ai-message-textarea {
+  /* width: 320px; */
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  color: #333;
+  background-color: #f9f9f9;
+  transition: all 0.3s ease;
+  outline: none;
+  resize: vertical; /* 只允许垂直调整高度 */
+}
+
+.ai-message-textarea:focus {
+  border-color: #28a745; /* 聚焦时的边框颜色 */
+  box-shadow: 0 0 5px rgba(40, 167, 69, 0.5); /* 聚焦时的阴影效果 */
+  background-color: #ffffff; /* 聚焦时改变背景色 */
+}
+
+.ai-message-textarea::placeholder {
+  color: #aaa; /* 设置占位符颜色 */
+  font-style: italic; /* 设置占位符为斜体 */
+}
+
 .note-detail-container {
   width: 70%;
   padding: 20px;
@@ -659,7 +815,6 @@ h2{
 .tag-card {
   background-color: #f1f1f1;
   padding: 8px;
-  /* padding-left: 15px; */
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -674,7 +829,7 @@ h2{
 }
 
 .tag-card .remove-btn .icon-cuo{
-  /* margin-left: 5px; */
+  margin-left: 5px;
   font-weight: 700;
   font-size: 20px;
   color: rgb(202, 38, 38);
@@ -709,7 +864,6 @@ h2{
   background: none;
   border: none;
   cursor: pointer;
-  transform: translateY(-4px);
 }
 
 .add-btn {
@@ -795,7 +949,7 @@ h2{
 
 .ai-chat-footer {
   width: 100%;
-  padding: 10px;
+  padding: 8px 10px;
   background-color: #f1f1f1;
   display: flex;
   justify-content: space-between;
@@ -811,13 +965,14 @@ h2{
 .ai-chat-footer .page2 {
   width: 90%;
   display: flex;
+  justify-content: space-around;
   align-items: center;
 }
 
 .ai-chat-footer .page2 button{
   width: 120px;
-  margin-left: 20px;
-  margin-right: 20px;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 .ai-chat-footer .next{
@@ -835,7 +990,7 @@ h2{
   border: none;
   padding: 5px;
   cursor: pointer;
-  border-radius: 20px;
+  border-radius: 15px;
 }
 
 .ai-chat-footer .next i{
@@ -844,7 +999,55 @@ h2{
 }
 
 .ai-chat-message {
+  position: relative;
   margin-bottom: 10px;
+}
+
+.edit-btn {
+  width: 30px;
+  height: 30px;
+  position: absolute;
+  top: -15px;
+  right: -30px;
+  transform: translateY(5px);
+  visibility: hidden; /* 默认隐藏按钮 */
+  opacity: 0;
+  transition: visibility 0s, opacity 0.3s ease-in-out; /* 按钮显示的过渡效果 */
+  background-color: transparent;
+  color: white;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.savebtn{
+  padding: 5px 10px;
+  border-radius: 5px;
+  background-color: #28a745;
+  color: #fff;
+  border: none;
+}
+
+.tihuan {
+  height: 30px;
+  color: #fff;
+  font-size: 16px;
+  border:solid 1px #228037;
+  background-color: #92b694;
+}
+
+.ai-chat-message:hover .edit-btn {
+  visibility: visible; /* 鼠标悬停时显示按钮 */
+  opacity: 1;
+}
+
+.ai-chat-message .content {
+  width: 290px;
+  padding: 2px;
+  padding-right: 8px;
+  background-color: #e1e1e1;
+  border-radius: 5px;
 }
 
 .ai-chat-message .user-message {
@@ -867,14 +1070,7 @@ h2{
 }
 
 .ai-avatar {
-  /* width: 35px;
-  height: 35px;
-  display: flex;
-  justify-content: center; */
   align-items: center;
-  /* padding: 5px;
-  border-radius: 50%; 头像圆形
-  margin-right: 5px; 头像与消息之间的间距 */
 }
 
 .ai-avatar i {
@@ -1017,22 +1213,22 @@ h2{
 }
 
 /* 确认按钮样式 */
-.confirm-btn {
+.confirm-btn1 {
   background-color: #4CAF50;
   color: white;
 }
 
-.confirm-btn:hover {
+.confirm-btn1:hover {
   background-color: #45a049;
 }
 
 /* 取消按钮样式 */
-.cancel-btn {
+.cancel-btn1 {
   background-color: #f44336; 
   color: white;
 }
 
-.cancel-btn:hover {
+.cancel-btn1:hover {
   background-color: #e53935;
 }
 
@@ -1052,20 +1248,9 @@ h2{
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* 软阴影 */
 }
 
-.option-btn {
-  font-size: 20px;
-  padding: 10px;
-  border: none;
-  background-color: transparent;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
 
-.option-btn:hover {
-  color: #007bff;
-}
 
-.confirm-btn {
+.confirm-btn1 {
   font-weight: bold;
 }
 

@@ -1,6 +1,18 @@
 ### 项目依赖
 见目录下requirements.txt文件
 
+### 后端自动化单测
+```bash
+cd backend # 进入后端project目录
+pwd # /Wangzai-Dumplings/backend
+
+make test # 运行所有模块测试
+make test-($service) # service为user、note、date服务
+
+# 例如 make test-user 
+# 测试用户模块相关函数
+```
+
 ### 后端服务启动
 
 进入`backend`目录下

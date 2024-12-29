@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import { useRouter } from 'vue-router';
+// 获取 Vue Router 实例
+const router = useRouter();
+
+// 跳转到笔记页面
+const goToNotePage = () => {
+  router.push('/notefile');
+};
 
 // 图片数据和逻辑
 const images = [
@@ -65,13 +73,13 @@ const prevTestimonial = () => {
 </script>
 
 <template>
-    <div>
+    <div class="box">
       <!-- 轮播图部分 -->
       <div class="lunbotu">
         <div class="content">
           <p class="p1">Effortlessly Organize Every Idea</p>
           <p class="p2">Simplify Your Notes</p>
-          <button>TRY NOW</button>
+          <button @click="goToNotePage">TRY NOW</button>
         </div>
         <!-- 图片轮播内容 -->
         <img class="images" :src="images[currentIndex]" alt="轮播图" />
@@ -97,10 +105,10 @@ const prevTestimonial = () => {
       </div>
   
       <div class="why">
-              <!-- 简介模块 -->
+      <!-- 简介模块 -->
       <section class="intro">
         <h2>Why Choose Us?</h2>
-        <p>We help you organize your thoughts and ideas with simplicity and ease. Take control of your productivity now!</p>
+        <p style="color: aliceblue;">We help you organize your thoughts and ideas with simplicity and ease. Take control of your productivity now!</p>
       </section>
   
       <!-- 卡片模块 -->
@@ -113,41 +121,48 @@ const prevTestimonial = () => {
         <div class="card">
           <img src="../assets/icon2.svg" alt="Feature 2">
           <h3>Highly Customizable</h3>
-          <p>Adapt the features to meet your unique needs and preferences.</p>
+          <p>Adapt the features to meet your unique needs and preferences.Adapt the features to meet your unique needs and preferencesAdapt the features to meet your unique needs and preferencesAdapt the features to meet your unique needs and preferencesAdapt the features to meet your unique </p>
         </div>
         <div class="card">
           <img src="../assets/icon3.svg" alt="Feature 3">
           <h3>Safe & Secure</h3>
-          <p>Your data is encrypted and safe with us.</p>
+          <p>Your data is encrypted and safe with us.Your data is encrypted and safe with us.Your data is encrypted and safe with us.Your data is encrypted and safe with us.Your data is encrypted and safe with us.Your data is encrypted and safe with us.Your data is encrypted and safe with us.</p>
         </div>
       </section>
       </div>
-      <!-- <div class="testimonials">
-    <h2>What Our Clients Say</h2>
-    <div class="testimonial-card">
-      <img :src="testimonials[currentIndex].avatar" alt="Avatar" class="avatar" />
-      <p class="feedback">"{{ testimonials[currentIndex].feedback }}"</p>
-      <p class="client-name">- {{ testimonials[currentIndex].name }}</p>
-    </div>
 
-
-    <div class="testimonial-controls">
-      <button @click="prevTestimonial" class="control-btn">Previous</button>
-      <button @click="nextTestimonial" class="control-btn">Next</button>
-    </div>
-  </div> -->
+      <!-- 项目展示：视差滚动效果 -->
+      <div class="program">
+        <div class="bg1">
+        <div class="title1">
+          <h1>项目展示：笔记功能介绍</h1>
+          <p>We help you organize your thoughts and ideas with simplicity and ease. Take control of your productivity now!</p>
+        </div>
+      </div>
+      <div class="bg2">
+        <div class="title2">
+          <h1>项目展示：笔记功能介绍</h1>
+          <p>We help you organize your thoughts and ideas with simplicity and ease. Take control of your productivity now!</p>
+        </div>
+      </div>
+      <div class="bg3">
+        <div class="title3">
+          <h1>项目展示：笔记功能介绍</h1>
+          <p>We help you organize your thoughts and ideas with simplicity and ease. Take control of your productivity now!</p>
+        </div>
+      </div>
+      </div>
       <!-- 页脚模块 -->
       <footer class="footer">
-        <p>&copy; 2024 YourCompany. All rights reserved.</p>
-        <div class="social-media">
+        <h3>&copy; 2024 YourCompany. All rights reserved.</h3>
+        <!-- <div class="social-media">
           <a href="#" class="iconfont icon-facebook"></a>
           <a href="#" class="iconfont icon-twitter"></a>
           <a href="#" class="iconfont icon-instagram"></a>
-        </div>
+        </div> -->
       </footer>
     </div>
-    
-  </template>
+</template>
   
 <style scoped>
 *{
@@ -163,6 +178,12 @@ a{
     text-decoration: none;
     border: none;
 }
+.box{
+  display: flex;
+  flex-direction: column;
+  /* justify-content: ; */
+}
+
 .lunbotu {
     width: 100%;
     height: 600px;
@@ -275,7 +296,7 @@ a{
   background-color: rgba(25, 24, 24, 0.5);
   border-radius: 50%;
   cursor: pointer;
-  transform: translateY(18px);
+  transform: translateY(-18px);
 }
 
 .lunbotu .indicators li.active {
@@ -302,6 +323,7 @@ a{
 }
 .why{
     background-color: #719e8e;
+    margin-bottom: 0px;
 }
 /* 简介模块 */
 .why .intro {
@@ -342,10 +364,23 @@ a{
   margin-bottom: 40px;
 }
 
+.why .features .card:hover{
+  transform: translateY(5px);
+  background-color: #e5e7e3;
+  transition: all .3s ease;
+}
+
+
 .why .features .card img {
-  width: 60px;
-  height: 60px;
+  width: 100px;
+  height: 100px;
   margin-bottom: 15px;
+}
+
+.why .features .card img:hover{
+  transform: scale(1.2);
+  transition: all .5s ease;
+
 }
 
 .why .features .card h3 {
@@ -361,11 +396,12 @@ a{
 
 /* 页脚模块 */
 .footer {
-  background-color: #638a6c;
+  background-color: #90b995;
   color: white;
   text-align: center;
-  padding: 20px 10px;
-  margin-top: 40px;
+  padding: 15px;
+  letter-spacing: 2px;
+
 }
 
 .footer .social-media a {
@@ -439,4 +475,78 @@ a{
 .control-btn:hover {
   background-color: #638a6c;
 }
+
+.program{
+  display: flex;
+  flex-direction: column;
+}
+
+.bg1{
+  width: 100%;
+  height: 700px;
+  background-image: url(../assets/bg_img01.jpg);
+  background-size: cover;
+  /* background-position */
+  background-repeat: no-repeat;
+  /* transform: translateY(-40px); */
+}
+
+.bg1 .title1{
+  width: 100%;
+  height: 200px;
+  padding-top: 30px;
+  text-align: center;
+  color: #333;
+  background-color: #fff;
+  opacity: 0.8;
+}
+
+.program h1{
+  margin-bottom: 20px;
+}
+
+.program p {
+  font-size: 20px;
+}
+
+.bg2{
+  width: 100%;
+  height: 700px;
+  background-image: url(../assets/bg_img02.jpg);
+  background-size: cover;
+  background-repeat: no-repeat;
+
+}
+
+.bg2 .title2{
+  width: 100%;
+  height: 200px;
+  padding-top: 30px;
+  text-align: center;
+  color: #333;
+  background-color: #fff;
+  margin-top: 0px;
+  opacity: 0.5;
+}
+.bg3{
+  width: 100%;
+  height: 700px;
+  background-image: url(../assets/bg_img03.jpg);
+  background-size: cover;
+  background-repeat: no-repeat;
+
+}
+
+.bg3 .title3{
+  width: 100%;
+  height: 200px;
+  padding-top: 30px;
+  text-align: center;
+  color: #333;
+  background-color: #fff;
+  margin-top: 0px;
+  opacity: 0.8;
+}
+
+
 </style>
