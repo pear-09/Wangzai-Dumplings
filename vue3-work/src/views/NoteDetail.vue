@@ -17,31 +17,34 @@ const exportNote = async () => {
     };
 
     // 发起请求，设置 responseType 为 'blob'，以便处理文件下载
-    const response = await request.get('/ez-note/note/export', { params, responseType: 'blob' });
+    const response = await request.get('/ez-note/note/export', { 
+      params, 
+      responseType: 'blob'  // 确保设置为 blob
+    });
 
-    // 打印整个响应对象查看其结构
-    console.log(response);
+    // 获取 Blob 数据
+    const blob = response.data;
+    if (blob && blob.size > 0) {
+      console.log('Blob:', blob);
 
-    // 判断 Blob 的 size 是否大于零，且检查文件类型
-    if (response.size > 0 && response.type === 'text/plain') {
-      // 如果 Blob 数据有效，处理文件下载
-      const fileURL = URL.createObjectURL(response);  // 直接使用 response 作为 Blob
-      const a = document.createElement('a');
+      // 获取文件名
       const disposition = response.headers['content-disposition'];
-      
-      // 处理文件名
+      let fileName = '未命名文件';
       const matches = /filename\*=UTF-8''(.+)/.exec(disposition);
-      const fileName = matches && matches[1] ? decodeURIComponent(matches[1]) : '未命名文件';
-      
-      // 创建并触发下载
+      if (matches && matches[1]) {
+        fileName = decodeURIComponent(matches[1]);
+      }
+
+      // 创建 Object URL 并触发下载
+      const fileURL = URL.createObjectURL(blob);
+      const a = document.createElement('a');
       a.href = fileURL;
-      a.download = fileName; 
+      a.download = fileName;
       a.click();
-      
-      // 释放资源
+
+      // 释放 Blob URL
       URL.revokeObjectURL(fileURL);
     } else {
-      // 如果 Blob 数据无效，提示用户错误
       alert('导出失败：未返回有效文件数据');
     }
   } catch (error) {
@@ -49,6 +52,8 @@ const exportNote = async () => {
     alert('导出失败，请稍后重试');
   }
 };
+
+
 
 
 const studyPlan = ref<string>('');
@@ -846,6 +851,10 @@ h2{
   background-color: #c7184a;
 }
 
+.actions .btn-export{
+  background-color: #c7184a;
+}
+
 .actions .btn1:hover{
   background-color:#67897b;
 }
@@ -854,6 +863,9 @@ h2{
   background-color:#892923;
 }
 
+.actions .btn-export:hover{
+  background-color:#892923;
+}
 
 /* 标签输入部分 */
 .tags-container {

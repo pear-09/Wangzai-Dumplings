@@ -2,8 +2,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
-
-
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   timeout: 100000, // 请求超时时间，单位毫秒
@@ -31,16 +29,19 @@ request.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
 // 响应拦截器：可以处理全局的响应错误
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // 只对非 Blob 类型响应进行处理，Blob 类型不处理
+    if (response.config.responseType !== 'blob') {
+      return response.data;
+    }
+    return response;  // 返回整个 response 以保留 Blob 数据
+  },
   (error) => {
     console.error('请求失败：', error);
     return Promise.reject(error);
   }
 );
-
-
 
 export default request;

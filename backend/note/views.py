@@ -13,6 +13,7 @@ from django.db.models import Q  # 引入 Q 对象，用于组合多个查询条�
 import io
 import os
 from docx import Document
+from docx.shared import Pt
 
 @csrf_exempt
 def create_note_view(request):
@@ -504,6 +505,7 @@ def update_note_title_view(request):
 #             return response
 
 #     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
+
 @csrf_exempt
 def export_note_view(request):
     """
@@ -547,15 +549,39 @@ def export_note_view(request):
             #   导出为 .docx
             # --------------------
             doc = Document()
-            doc.add_heading(note.title, level=1)  # 标题
-            doc.add_paragraph(note.content)       # 内容
 
+            # 设置字体为 Times New Roman（英文部分）和 SimSun（中文部分）
+            style = doc.styles['Normal']
+            font = style.font
+            font.name = 'Times New Roman'  # 设置西文字体为 Times New Roman
+            font.size = Pt(12)  # 设置字体大小为 12
+
+            # 设置中文字体为 SimSun（宋体）
+            for paragraph in doc.paragraphs:
+                for run in paragraph.runs:
+                    if is_chinese(run.text):  # 判断是否包含中文
+                        run.font.name = 'SimSun'  # 设置中文字体
+                    else:
+                        run.font.name = 'Times New Roman'  # 设置英文部分字体
+
+            # 添加标题
+            heading = doc.add_heading(note.title, level=1)
+            heading.style.font.name = 'Times New Roman'  # 设置标题字体为 Times New Roman
+            heading.style.font.size = Pt(14)  # 设置标题字体大小
+
+            # 添加正文内容
+            paragraph = doc.add_paragraph(note.content)
+            paragraph.style.font.name = 'Times New Roman'  # 设置段落字体为 Times New Roman
+            paragraph.style.font.size = Pt(12)
+
+            # 创建文件流并保存
             file_stream = io.BytesIO()  # 创建内存流
             doc.save(file_stream)       # 将生成的 docx 写入内存流
             file_stream.seek(0)         # 指针回到开头
 
             safe_file_name = escape_uri_path(f"{file_name_base}.docx")
 
+            # 设置响应头，返回文件
             response = HttpResponse(
                 file_stream.getvalue(),
                 content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -576,7 +602,11 @@ def export_note_view(request):
 
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
-
+def is_chinese(text):
+    """
+    判断字符串是否包含中文字符
+    """
+    return any('\u4e00' <= char <= '\u9fff' for char in text)
 
 @csrf_exempt
 def import_note_view(request):
