@@ -11,4 +11,6 @@ urlpatterns = [
     path('update/tag', views.update_note_tag_view, name='update_note_tag'),
     path('search', views.search_notes_by_tag_view, name='search_notes_by_tag'),
     path('update/title', views.update_note_title_view, name='update_note_title'),
+    path('export', views.export_note_view, name='export_note_view'),
+    path('import', views.import_note_view, name='import_note_view'),
 ]
