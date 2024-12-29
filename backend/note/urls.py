@@ -9,6 +9,6 @@ urlpatterns = [
     path('query-all',views.get_notes_in_folder_view, name='query-all'),
     path('delete',views.delete_note_view, name='delete'),
     path('update/tag', views.update_note_tag_view, name='update_note_tag'),
-     path('search', views.search_notes_by_tag_view, name='search_notes_by_tag'),
-     path('update/title', views.update_note_title_view, name='update_note_title'),
+    path('search', views.search_notes_by_tag_view, name='search_notes_by_tag'),
+    path('update/title', views.update_note_title_view, name='update_note_title'),
 ]

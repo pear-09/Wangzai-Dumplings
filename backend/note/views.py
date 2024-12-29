@@ -8,6 +8,7 @@ from .models import Note, Tag
 from user.utils import verify_and_refresh_token  # 自定义的 token 验证函数
 from rest_framework_simplejwt.tokens import AccessToken
 import json
+from django.db.models import Q  # 引入 Q 对象，用于组合多个查询条件
 
 @csrf_exempt
 def create_note_view(request):
@@ -315,21 +316,21 @@ def update_note_tag_view(request):
     return JsonResponse({"code": 1, "msg": "无效的请求方法"})
 
 
-
 @csrf_exempt
 def search_notes_by_tag_view(request):
     if request.method == 'GET':
         try:
+            # 验证并刷新 token
             token = verify_and_refresh_token(request)
             access_token = AccessToken(token)
             user_id = access_token['user_id']
         except Exception as e:
             return JsonResponse({"code": 1, "msg": f"Token 验证失败: {str(e)}"})
 
-        # 获取参数
-        tag_name = request.GET.get('tag')
-        if not tag_name:
-            return JsonResponse({"code": 1, "msg": "参数缺失：需要 tag"})
+        # 获取传递的参数，tag_name 用于传递标签或标题
+        search_param = request.GET.get('tag')
+        if not search_param:
+            return JsonResponse({"code": 1, "msg": "参数缺失：需要 tag 或 title"})
 
         # 处理分页参数
         def get_int_param(param_value, default_value):
@@ -341,13 +342,16 @@ def search_notes_by_tag_view(request):
         limit = get_int_param(request.GET.get('limit'), 10)
         offset = get_int_param(request.GET.get('offset'), 0)
 
-        try:
-            tag = Tag.objects.get(name=tag_name)
-        except Tag.DoesNotExist:
-            return JsonResponse({"code": 1, "msg": "标签不存在"})
+        # 构建查询条件
+        query = Q(user_id=user_id)  # 只查询当前用户的笔记
 
-        notes = Note.objects.filter(user_id=user_id, tags=tag).order_by('-created_at')[offset:offset+limit]
+        # 同时在 tags 和 title 中进行模糊搜索
+        query &= (Q(title__icontains=search_param) | Q(tags__name__icontains=search_param))
 
+        # 获取笔记数据，使用 distinct 去重
+        notes = Note.objects.filter(query).distinct().order_by('-created_at')[offset:offset + limit]
+
+        # 将笔记数据转换为列表
         notes_data = [
             {
                 "id": note.id,
@@ -355,7 +359,7 @@ def search_notes_by_tag_view(request):
                 "title": note.title,
                 "content": note.content,
                 "folder_id": note.folder_id,
-                "tag": tag_name,
+                "tag": search_param,  # 返回传入的 tag 或 title
                 "created_at": note.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                 "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M:%S") if note.updated_at else None,
                 "deleted_at": note.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if note.deleted_at else None,
