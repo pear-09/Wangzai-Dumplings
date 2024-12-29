@@ -18,6 +18,11 @@
           <button type="submit">注册</button>
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         </form>
+        <!-- 注册成功的弹窗 -->
+        <div v-if="showSuccessMessage" class="success-message">
+          <h3>注册成功！</h3>
+            <p>即将跳转到登录页面...</p>
+        </div>
       </div>
     </div>
     <!-- 装饰图案 -->
@@ -29,13 +34,16 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import axios from 'axios';
+import { useRouter } from 'vue-router';  // 用于页面跳转
 
+const router = useRouter();
 const user = reactive({
   username: '',
   password: '',
 });
 
 const errorMessage = ref<string>('');
+const showSuccessMessage = ref(false); // 控制注册成功弹窗的显示
 
 const handleSubmit = async () => {
   try {
@@ -46,9 +54,12 @@ const handleSubmit = async () => {
     });
 
     if (response.data.code === 0) {
-      alert('注册成功!');
-      // 可以添加跳转到登录页面的逻辑，例如：
-      // router.push('/login');
+      // 显示注册成功的弹窗
+      showSuccessMessage.value = true;
+      // 设置两秒后跳转到登录页面
+      setTimeout(() => {
+        router.push('/land');
+      }, 1500);
     } else {
       errorMessage.value = response.data.msg;
     }
@@ -257,5 +268,25 @@ button:hover {
   100% {
     transform: translateY(0) rotate(0deg);
   }
+}
+/* 添加弹窗的样式 */
+.success-message {
+  position: fixed;
+  width: 200px;
+  height: 100px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #4CAF50;
+  color: white;
+  padding: 20px;
+  border-radius: 5px;
+  z-index: 1000;
+}
+.h3{
+  text-align: center;
+}
+.p{
+  text-align: center;
 }
 </style>

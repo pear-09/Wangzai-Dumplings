@@ -120,14 +120,14 @@
     </div>
   </div>
   <div>
-    <div v-if="showBeautifiedContent" class="popupbeauty">
+    <div v-if="showBeautifiedContent" class="popupbeauty" @click.stop>
       <textarea v-model="beautifiedText" class="editable-textarea"></textarea>
       <button class="button2"@click="replaceWithBeautifiedContent">插入</button>
       <button class="button2"@click="cancelBeautify">取消</button>
     </div>
   </div>
 
-  <div v-if="showPopupcontent" class="popcontent">
+  <div v-if="showPopupcontent" class="popcontent" @click.stop>
     <div class="popcontent-body">
       <textarea v-model="popInputContent" class="popcontent-textarea" placeholder="请输入内容"></textarea>
       <div class="popcontent-buttons">
@@ -158,7 +158,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Quill from 'quill';
 import request from '@/utils/request';
-
+import { nextTick } from 'vue';
 const route = useRoute();
 const router = useRouter();
 
@@ -168,7 +168,7 @@ const docId = isNew ? null : route.params.id;
 const folderId = route.query.folder_id || 0;
 const folderName = ref(route.query.docName || '无标题');
 
-let saveInterval: any = null;  // 用于存储定时器ID
+
 const showPopup = ref(false);
 const showPopupcontent = ref(false);
 const popupTitle = ref('');
@@ -206,31 +206,9 @@ let lastAIModel = formData.value.AI_model;  // 初始化 lastAIModel 来保存�
 // 定义响应式状态
 const showParagraphPopup = ref(false);  // 用来控制弹窗是否显示
 const popInputContent = ref('');  // 用于输入框的双向绑定
-const popupPosition = ref({ top: 100, left: 100 });  // 初始弹窗位置
-let isDragging = ref(false);
-let offsetX = ref(0);
-let offsetY = ref(0);
 
-const startDrag = (e: MouseEvent) => {
-  isDragging.value = true;
-  offsetX.value = e.clientX - popupPosition.value.left;
-  offsetY.value = e.clientY - popupPosition.value.top;
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', stopDrag);
-};
 
-const onDrag = (e: MouseEvent) => {
-  if (isDragging.value) {
-    popupPosition.value.left = e.clientX - offsetX.value;
-    popupPosition.value.top = e.clientY - offsetY.value;
-  }
-};
 
-const stopDrag = () => {
-  isDragging.value = false;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', stopDrag);
-};
 // 弹窗打开的函数
 const openParagraphPopup = () => {
   showParagraphPopup.value = true;
@@ -356,18 +334,20 @@ addFeatureButton('🔍', '文章分析', () => handleFeatureChange('文章分析
   if (!isNew && docId) {
     await fetchDocumentContent();
   }
-
-  // 设置定时自动保存，每3秒保存一次
-  saveInterval = setInterval(saveNote, 300000);
+  
   quillEditor.value.on('selection-change', function (range) {
+    console.log('showpopup:', showPopup.value);
+    if (!showPopup.value) {
+      return; // showPopup 为 false 时直接返回，不执行任何逻辑
+    }
+
     if (range && range.length > 0) {
-      // 文本被选中，显示操作按钮
       showTextSelectionOptions(range);
     } else {
-      // 没有文本被选中，隐藏按钮
       hideTextSelectionOptions();
     }
   });
+
   quillEditor.value.on('text-change', updateWordCount); // 每次编辑器内容发生变化时，更新字数
   updateWordCount(); // 初始化字数
   
@@ -433,16 +413,12 @@ const handleSelectionChoice = (isAccepted) => {
     // 获取选中的文本内容
     const selectedText = quillEditor.value.getText(selectedRange.value.index, selectedRange.value.length);
     formData.value.text = selectedText; // 将选中的文本存储在 text 中
+    formData.value.prompt = selectedText;
   }
   hideTextSelectionOptions(); // 隐藏按钮
 };
 
-onBeforeUnmount(() => {
-  // 清除定时器
-  if (saveInterval) {
-    clearInterval(saveInterval);
-  }
-});
+
 const handleModelChange = (event) => {
   const selectedModel = event.target.value;
   console.log('Selected model:', selectedModel);
@@ -462,8 +438,6 @@ const handleModelChange = (event) => {
 
   console.log('AI Model saved to formData:', formData.value.AI_model);
 };
-
-
 
 
 const showPopupDetails = (title, type) => {
@@ -539,15 +513,23 @@ const beautifyParagraph = async () => {
     console.error('段落美化请求失败:', error);
   }
 };
+
 // 替换选中的内容为段落美化后的文本
 const replaceWithBeautifiedContent = () => {
   if (selectedRange.value && beautifiedText.value) {
-    // 替换选中文本为用户编辑后的美化内容
-    quillEditor.value.deleteText(selectedRange.value.index, selectedRange.value.length);
-    quillEditor.value.insertText(selectedRange.value.index, beautifiedText.value);
-    // 关闭弹窗
-    showBeautifiedContent.value = false;
-    selectedRange.value = null;
+    const { index, length } = selectedRange.value;
+    quillEditor.value.deleteText(index, length);
+    quillEditor.value.insertText(index, beautifiedText.value);
+    
+    // 手动触发 text-change 事件，更新 Quill 编辑器状态
+    quillEditor.value.emitter.emit('text-change', {}, quillEditor.value.root.innerHTML);
+
+    // 使用 nextTick 确保 DOM 更新后关闭弹窗
+    nextTick(() => {
+      showBeautifiedContent.value = false;
+    });
+  } else {
+    console.error('Selected range or beautified text is not defined');
   }
 };
 
@@ -555,8 +537,8 @@ const replaceWithBeautifiedContent = () => {
 const cancelBeautify = () => {
   // 隐藏弹窗
   showBeautifiedContent.value = false;
-  selectedRange.value = null;
 };
+
 // // 隐藏选中文本操作按钮
 // const hideSelectionButtons = () => {
 //   showSelectionButtons.value = false;
@@ -596,7 +578,6 @@ const generateParagraph = async () => {
         console.error('生成段落请求失败:', error);
       }
     };
-
 
 
 const continueContent = async () => {
@@ -647,11 +628,10 @@ const provideWritingTips = async () => {
 
     if (response.code === 0) {
       console.log('写作提示成功', response.data);
-      const generatedContent = response.inspiration; // 假设后端返回的段落内容字段名为 `paragraph`
+      const generatedContent = response.inspiration||response.outline||response.title||response.character_bio||response.scene_description||response.dialogue||response.setting||response.synopsis; // 假设后端返回的段落内容字段名为 `paragraph`
 
       // 设置弹窗编辑器的内容
       popInputContent.value = generatedContent;
-
       // 显示弹窗
       showParagraphPopup.value = true;
       openParagraphPopup();
@@ -695,8 +675,6 @@ const analyzeArticle = async () => {
     console.error('文章分析请求失败:', error);
   }
 };
-
-
 
 
 const fetchDocumentContent = async () => {
@@ -876,6 +854,8 @@ const goBack = () => {
   top: 100px; /* 根据需要调整垂直位置 */
   transform: translateX(-50%); /* 水平居中 */
   transition: all 0.3s ease-in-out; /* 平滑过渡效果 */
+  height: 300px;
+  width: 300px;
 }
 
 
@@ -1107,16 +1087,14 @@ input:focus {
 }
 
 .footer-bar {
-  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #fff;
+  background-color: none;
   padding: 10px 20px;
-  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .word-count {
@@ -1197,11 +1175,13 @@ input:focus {
 /* Quill 编辑器容器 */
 .note-detail-container {
   padding: 0px 10px;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-title {
   font-size: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1218,8 +1198,6 @@ input:focus {
 }
 
 .note-form {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   margin-top: 0px;
   padding: 0;
