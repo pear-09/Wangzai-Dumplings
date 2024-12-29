@@ -134,7 +134,9 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import request from '@/utils/request'
 import Modal from '@/components/Modal.vue'
-import { useBackendDataStore } from '../stores/backendDataStore'; // 引入 Pinia store
+import { useRouter } from 'vue-router';  // 引入 Vue Router
+
+const router = useRouter();  // 获取 router 实例
 // 响应式状态
 const modalVisible = ref(false)
 const currentEvent = ref({
@@ -619,8 +621,19 @@ const openCreateEventModal = () => {
   modalVisible.value = true
 }
 
+// 检查 auth_token
+const checkAuthToken = () => {
+  const token = localStorage.getItem('auth_token');  // 从 localStorage 获取 auth_token
+  if (!token) {
+    // 如果没有 auth_token，跳转到登录页面
+    router.push('/land');
+  }
+};
+
+
 // 生命周期钩子
 onMounted(() => {
+  checkAuthToken();  // 组件挂载时检查 token
   initializeCalendar()
 })
 </script>
